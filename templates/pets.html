@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}My Pets - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Beyond humans</span>
+    <h1 class="section-title">My Pets</h1>
+    <p class="section-sub mt-2">Keep a profile, vaccination record and printable emergency card for each pet - handy for vet visits, pet-sitters, or a lost-pet situation.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card p-4">
+          <h6 class="mb-3"><i class="fa-solid fa-paw text-accent me-2"></i>Add a pet</h6>
+          <form method="post" action="{{ url_for('api_add_pet') }}">
+            <div class="mb-3">
+              <label class="form-label small">Name</label>
+              <input class="form-control" name="name" required>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-3">
+                <label class="form-label small">Species</label>
+                <select class="form-select" name="species">
+                  <option>Dog</option><option>Cat</option><option>Bird</option><option>Other</option>
+                </select>
+              </div>
+              <div class="col-6 mb-3">
+                <label class="form-label small">Breed</label>
+                <input class="form-control" name="breed">
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-3">
+                <label class="form-label small">Date of birth</label>
+                <input class="form-control" type="date" name="date_of_birth">
+              </div>
+              <div class="col-6 mb-3">
+                <label class="form-label small">Weight (kg)</label>
+                <input class="form-control" type="number" step="0.1" name="weight_kg">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Microchip number</label>
+              <input class="form-control" name="microchip_number">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Allergies</label>
+              <input class="form-control" name="allergies">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Medications</label>
+              <input class="form-control" name="medications">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Notes</label>
+              <input class="form-control" name="notes" placeholder="e.g. Nervous around strangers">
+            </div>
+            <button class="btn btn-primary-solid w-100" type="submit">Add pet</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        {% if not rows %}
+        <div class="glass-card p-4 text-center text-muted-custom">
+          <i class="fa-solid fa-paw fa-2x mb-2"></i>
+          <p class="mb-0">No pets added yet.</p>
+        </div>
+        {% endif %}
+        {% for pet in rows %}
+        <div class="glass-card p-3 mb-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">{{ pet['name'] }} <span class="badge bg-secondary ms-1">{{ pet['species'] or 'Pet' }}</span></div>
+              <div class="small text-muted-custom">{{ pet['breed'] or '' }} {% if pet['weight_kg'] %}&middot; {{ pet['weight_kg'] }} kg{% endif %}</div>
+              {% if pet['allergies'] %}<div class="small text-muted-custom">Allergies: {{ pet['allergies'] }}</div>{% endif %}
+            </div>
+            <form method="post" action="{{ url_for('api_delete_pet', pet_id=pet['id']) }}" onsubmit="return confirm('Remove this pet profile?')">
+              <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+            </form>
+          </div>
+          <div class="d-flex gap-2 mt-2">
+            <a href="{{ url_for('pet_vaccinations_page', pet_id=pet['id']) }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-syringe me-1"></i>Vaccinations</a>
+            <a href="{{ url_for('pet_card', token=pet['card_token']) }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-id-badge me-1"></i>Pet Card</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

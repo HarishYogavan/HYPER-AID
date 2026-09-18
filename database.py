@@ -15,10 +15,20 @@ Design notes:
 
 import sqlite3
 import os
+import shutil
 from datetime import datetime
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database.db")
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DB_PATH = "/tmp/database.db"
+    orig_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database.db")
+    if not os.path.exists(DB_PATH) and os.path.exists(orig_db):
+        try:
+            shutil.copyfile(orig_db, DB_PATH)
+        except Exception:
+            pass
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -410,6 +420,8 @@ VET_CLINICS = [
 
 def get_db():
     """Return a SQLite connection with dict-like row access."""
+    if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) and not os.path.exists(DB_PATH):
+        init_db(seed=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

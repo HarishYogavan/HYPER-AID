@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Accident Detection - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">AI Accident Detection</span>
+    <h1 class="section-title">Upload a photo, get an instant read</h1>
+    <p class="section-sub mt-2">Our on-device heuristic looks at damage and debris signatures in the photo to estimate severity and suggest next steps. This is a fast triage aid, not a medical or legal assessment - always call 108/112 for serious incidents.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="glass-card p-4">
+          <div id="dropZone" class="text-center py-5 border rounded-3" style="border-style:dashed!important;cursor:pointer">
+            <i class="fa-solid fa-cloud-arrow-up fa-2x text-accent mb-2"></i>
+            <p class="mb-1 fw-semibold">Click to upload an accident photo</p>
+            <p class="small text-muted-custom mb-0">PNG, JPG or WEBP, up to 6MB</p>
+            <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
+          <img id="preview" class="img-fluid rounded-3 mt-3 d-none" alt="Preview">
+          <button id="analyzeBtn" class="btn btn-emergency w-100 mt-3" disabled>
+            <i class="fa-solid fa-magnifying-glass-chart me-2"></i>Analyze Photo
+          </button>
+          <div class="form-text mt-2"><i class="fa-solid fa-location-dot me-1"></i>
+            <span id="locStatus">Location not shared - severity estimate will still work, but hospital recommendation needs it.</span>
+            <button id="useLocBtn" class="btn btn-sm btn-outline-primary ms-2">Use my location</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div id="resultCard" class="glass-card p-4 d-none">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Severity estimate</h5>
+            <span id="sevPill" class="pill"></span>
+          </div>
+          <div class="progress my-3" style="height:8px">
+            <div id="sevBar" class="progress-bar bg-danger" style="width:0%"></div>
+          </div>
+          <p id="sevNotes" class="mb-3"></p>
+          <div id="hospitalBox" class="d-none">
+            <hr>
+            <h6><i class="fa-solid fa-hospital text-accent me-2"></i>Recommended nearest hospital</h6>
+            <div id="hospitalInfo" class="result-row"></div>
+          </div>
+        </div>
+        <div id="placeholderCard" class="glass-card p-4 text-center text-muted-custom">
+          <i class="fa-solid fa-image fa-2x mb-2"></i>
+          <p class="mb-0">Your analysis will appear here.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const analyzeBtn = document.getElementById('analyzeBtn');
+let userLat = null, userLng = null, selectedFile = null;
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  selectedFile = file;
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove('d-none');
+  analyzeBtn.disabled = false;
+});
+
+document.getElementById('useLocBtn').addEventListener('click', () => {
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    document.getElementById('locStatus').textContent = `Location shared: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+  }, () => showToast('Could not get location.', 'danger'));
+});
+
+analyzeBtn.addEventListener('click', () => {
+  if (!selectedFile) return;
+  analyzeBtn.disabled = true;
+  analyzeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+
+  const fd = new FormData();
+  fd.append('image', selectedFile);
+  if (userLat) { fd.append('lat', userLat); fd.append('lng', userLng); }
+
+  fetch('/api/accident/analyze', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart me-2"></i>Analyze Another';
+      if (data.error) { showToast(data.error, 'danger'); return; }
+
+      document.getElementById('placeholderCard').classList.add('d-none');
+      const resultCard = document.getElementById('resultCard');
+      resultCard.classList.remove('d-none');
+
+      const pill = document.getElementById('sevPill');
+      pill.textContent = data.severity;
+      pill.className = 'pill ' + (data.severity === 'Low' ? 'pill-low' : data.severity === 'Medium' ? 'pill-medium' : 'pill-high');
+      document.getElementById('sevBar').style.width = Math.round(data.confidence * 100) + '%';
+      document.getElementById('sevNotes').textContent = data.notes;
+
+      const hb = document.getElementById('hospitalBox');
+      if (data.nearest_hospital) {
+        hb.classList.remove('d-none');
+        const h = data.nearest_hospital;
+        document.getElementById('hospitalInfo').innerHTML = `
+          <div><div class="fw-semibold">${h.name}</div><div class="small text-muted-custom">${h.address}</div></div>
+          <div class="text-end"><div class="mono small">${h.distance_km} km &middot; ETA ${h.eta_min} min</div>
+          <a href="tel:${h.phone}" class="btn btn-sm btn-outline-primary mt-1">Call</a></div>`;
+      } else {
+        hb.classList.add('d-none');
+      }
+    })
+    .catch(() => {
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart me-2"></i>Analyze Photo';
+      showToast('Analysis failed. Please try again.', 'danger');
+    });
+});
+</script>
+{% endblock %}

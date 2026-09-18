@@ -23,7 +23,10 @@ return signature, so no other code needs to change.
 import math
 import random
 from PIL import Image
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 EARTH_RADIUS_KM = 6371.0
 

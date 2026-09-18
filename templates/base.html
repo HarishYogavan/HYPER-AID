@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>{% block title %}HyperAid - Emergency Response Assistant{% endblock %}</title>
+<meta name="description" content="{% block description %}HyperAid is an AI-powered emergency response assistant: find hospitals, ambulances, police and fire stations in seconds, get first-aid guidance, and trigger one-tap SOS alerts.{% endblock %}">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="manifest" href="{{ url_for('pwa_manifest') }}">
+<meta name="theme-color" content="#2452FF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="HyperAid">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+
+<div id="loader"><div class="pulse-ring"><i class="fa-solid fa-heart-pulse"></i></div></div>
+
+<div class="offline-banner" id="offlineBanner">
+  <i class="fa-solid fa-wifi" style="opacity:.6"></i>
+  <span id="offlineBannerText">You're offline - showing cached data. Actions like SOS will send automatically once you're back online.</span>
+</div>
+
+<div class="app-shell">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <a class="sidebar-brand" href="{{ url_for('index') }}">
+      <span class="brand-mark"><i class="fa-solid fa-heart-pulse"></i></span>
+      Hyper<span class="text-accent">Aid</span>
+    </a>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i><span>Home</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'services' }}" href="{{ url_for('services') }}"><i class="fa-solid fa-hand-holding-medical"></i><span>Services</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'chatbot_page' }}" href="{{ url_for('chatbot_page') }}"><i class="fa-solid fa-robot"></i><span>HYPER AI</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a>
+
+      <div class="sidebar-section-label">Find Help</div>
+      <a class="nav-item {{ 'active' if request.endpoint == 'live_map' }}" href="{{ url_for('live_map') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-map-location-dot"></i><span>Live Map &amp; Directions</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'symptom_checker_page' }}" href="{{ url_for('symptom_checker_page') }}"><i class="fa-solid fa-stethoscope"></i><span>Symptom Checker</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'accident_page' }}" href="{{ url_for('accident_page') }}"><i class="fa-solid fa-camera"></i><span>Accident Detection</span></a>
+
+      <div class="sidebar-section-label">Stay Safe</div>
+      <a class="nav-item {{ 'active' if request.endpoint == 'location_tracker_page' }}" href="{{ url_for('location_tracker_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-location-crosshairs"></i><span>Location Tracker</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'checkin_timer_page' }}" href="{{ url_for('checkin_timer_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-hourglass-half"></i><span>Check-in Timer</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'community_alerts_page' }}" href="{{ url_for('community_alerts_page') }}"><i class="fa-solid fa-triangle-exclamation"></i><span>Community Alerts</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'disaster_guides' }}" href="{{ url_for('disaster_guides') }}"><i class="fa-solid fa-house-crack"></i><span>Disaster Guides</span></a>
+
+      <div class="sidebar-section-label">My Records</div>
+      <a class="nav-item {{ 'active' if request.endpoint == 'profile' }}" href="{{ url_for('profile') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-id-badge"></i><span>Emergency Card</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'vaccinations_page' }}" href="{{ url_for('vaccinations_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-syringe"></i><span>Vaccinations</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'kit_inventory_page' }}" href="{{ url_for('kit_inventory_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-kit-medical"></i><span>Kit Inventory</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'medication_reminders_page' }}" href="{{ url_for('medication_reminders_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-pills"></i><span>Medication Reminders</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'dependents_page' }}" href="{{ url_for('dependents_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-user-shield"></i><span>Dependents</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'pets_page' }}" href="{{ url_for('pets_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-paw"></i><span>My Pets</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'support_requests_page' }}" href="{{ url_for('support_requests_page') if logged_in_user else url_for('login') }}"><i class="fa-solid fa-hand-holding-heart"></i><span>Support Requests</span></a>
+
+      <div class="sidebar-section-label">More</div>
+      <a class="nav-item {{ 'active' if request.endpoint == 'about' }}" href="{{ url_for('about') }}"><i class="fa-solid fa-circle-info"></i><span>About</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'blog' }}" href="{{ url_for('blog') }}"><i class="fa-solid fa-newspaper"></i><span>Blog</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'faq' }}" href="{{ url_for('faq') }}"><i class="fa-solid fa-circle-question"></i><span>FAQ</span></a>
+      <a class="nav-item {{ 'active' if request.endpoint == 'contact' }}" href="{{ url_for('contact') }}"><i class="fa-solid fa-envelope"></i><span>Contact</span></a>
+      {% if logged_in_user and logged_in_user['role'] == 'admin' %}
+      <a class="nav-item {{ 'active' if request.endpoint == 'admin_dashboard' }}" href="{{ url_for('admin_dashboard') }}"><i class="fa-solid fa-user-gear"></i><span>Admin Panel</span></a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+      {% if logged_in_user %}
+        <a class="nav-item" href="{{ url_for('contacts_page') }}"><i class="fa-solid fa-address-book"></i><span>Emergency Contacts</span></a>
+        <a class="nav-item text-success" href="#" onclick="triggerImSafe();return false;"><i class="fa-solid fa-circle-check"></i><span>I'm Safe</span></a>
+        <a class="nav-item" style="color:var(--color-accent);" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-primary w-100">Login</a>
+        <a href="{{ url_for('register') }}" class="btn btn-sm btn-primary-solid w-100">Sign Up</a>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- ===== Main area ===== -->
+  <div class="main-area">
+    <header class="topbar">
+      <button class="icon-btn" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button>
+      <div class="topbar-title">{% block page_title %}HyperAid{% endblock %}</div>
+      <div class="topbar-actions">
+        <button id="themeToggle" class="icon-btn" title="Cycle theme (Light / Dark / Black &amp; White)">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+        <button id="contrastToggle" class="icon-btn" title="Toggle extra accessibility contrast">
+          <i class="fa-solid fa-circle-half-stroke"></i>
+        </button>
+        <button id="bigIconToggle" class="icon-btn" title="Toggle simplified big-icon mode">
+          <i class="fa-solid fa-magnifying-glass-plus"></i>
+        </button>
+        <button id="fakeCallBtn" class="icon-btn" title="Simulate an incoming call" onclick="showFakeCall()">
+          <i class="fa-solid fa-phone"></i>
+        </button>
+        {% if logged_in_user %}
+          <div class="dropdown">
+            <button class="user-chip btn btn-sm" data-bs-toggle="dropdown" style="border:1px solid var(--border); border-radius:50px; padding:.3rem .8rem .3rem .4rem;">
+              <span class="avatar-chip">{{ logged_in_user['full_name'][0]|upper }}</span>
+              <span>{{ logged_in_user['full_name'].split(' ')[0] }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fa-solid fa-id-card me-2"></i>Profile</a></li>
+              {% if logged_in_user['medical_card_token'] %}
+              <li><a class="dropdown-item" href="{{ url_for('emergency_card', token=logged_in_user['medical_card_token']) }}" target="_blank"><i class="fa-solid fa-id-badge me-2"></i>My Emergency Card</a></li>
+              {% endif %}
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket me-2"></i>Logout</a></li>
+            </ul>
+          </div>
+        {% endif %}
+        <button class="sos-btn-nav" onclick="triggerSOS()" title="Emergency SOS">
+          <span class="sos-ring"></span>SOS
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== Flash messages ===== -->
+    <div class="flash-wrap content" style="padding-bottom:0;">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category=='danger' else category }} alert-dismissible fade show glass-card mt-3" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
+
+    {% if session.get('anomaly_gap_days') %}
+    <div class="content" style="padding-top:0; padding-bottom:0;">
+      <div class="alert alert-warning glass-card mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2" id="anomalyBanner">
+        <span><i class="fa-solid fa-heart-circle-check text-accent me-2"></i>We haven't heard from you in {{ session.get('anomaly_gap_days') }} days - everything okay?</span>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-primary-solid" onclick="dismissAnomalyBanner()">I'm fine</button>
+          <a href="{{ url_for('contacts_page') }}" class="btn btn-sm btn-outline-primary">Update my contacts</a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ===== Page content ===== -->
+    <main class="content">
+    {% block content %}{% endblock %}
+    </main>
+
+    <!-- ===== Footer ===== -->
+    <footer class="app-footer">
+      <div class="content" style="padding-top:0;">
+        <div class="row gy-4">
+          <div class="col-md-4">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+              <span class="brand-mark"><i class="fa-solid fa-heart-pulse"></i></span>
+              Hyper<span class="text-accent">Aid</span>
+            </a>
+            <p class="mt-2 footer-muted">AI-powered emergency response - find help fast, guide first response, and alert the people who matter, all in one place.</p>
+            <div class="social-links">
+              <a href="#"><i class="fa-brands fa-facebook-f"></i></a>
+              <a href="#"><i class="fa-brands fa-twitter"></i></a>
+              <a href="#"><i class="fa-brands fa-instagram"></i></a>
+              <a href="#"><i class="fa-brands fa-linkedin-in"></i></a>
+            </div>
+          </div>
+          <div class="col-md-2 col-6">
+            <h6>Explore</h6>
+            <ul class="footer-links">
+              <li><a href="{{ url_for('about') }}">About</a></li>
+              <li><a href="{{ url_for('services') }}">Services</a></li>
+              <li><a href="{{ url_for('blog') }}">Blog</a></li>
+              <li><a href="{{ url_for('faq') }}">FAQ</a></li>
+            </ul>
+          </div>
+          <div class="col-md-2 col-6">
+            <h6>Tools</h6>
+            <ul class="footer-links">
+              <li><a href="{{ url_for('chatbot_page') }}">HYPER AI Assistant</a></li>
+              <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+              <li><a href="{{ url_for('live_map') if logged_in_user else url_for('login') }}">Live Map</a></li>
+              <li><a href="{{ url_for('symptom_checker_page') }}">Symptom Checker</a></li>
+              <li><a href="{{ url_for('disaster_guides') }}">Disaster Guides</a></li>
+              <li><a href="{{ url_for('pets_page') if logged_in_user else url_for('login') }}">My Pets</a></li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6>Emergency Numbers (India)</h6>
+            <ul class="footer-links two-col">
+              {% for name, number in emergency_numbers.items() %}
+              <li><i class="fa-solid fa-phone text-accent me-1"></i>{{ name }}: <strong>{{ number }}</strong></li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <hr>
+        <div class="d-flex flex-wrap justify-content-between small footer-muted">
+          <span>&copy; {{ current_year }} HyperAid. All rights reserved.</span>
+          <span>Built for demonstration purposes - always call official emergency numbers first.</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<button id="scrollTopBtn" title="Scroll to top"><i class="fa-solid fa-chevron-up"></i></button>
+<button class="sos-fab" onclick="triggerSOS()"><span class="sos-ring"></span><i class="fa-solid fa-triangle-exclamation"></i></button>
+
+<!-- Fake incoming call decoy screen -->
+<div id="fakeCallOverlay" class="fake-call-overlay d-none">
+  <div class="fake-call-inner">
+    <p class="small opacity-75 mb-1">Incoming call</p>
+    <h2 class="mb-0">Mom</h2>
+    <p class="opacity-75">Mobile</p>
+    <div class="fake-call-avatar"><i class="fa-solid fa-user"></i></div>
+    <div class="d-flex justify-content-around mt-5">
+      <button class="fake-call-btn decline" onclick="hideFakeCall()"><i class="fa-solid fa-phone-slash"></i></button>
+      <button class="fake-call-btn accept" onclick="hideFakeCall()"><i class="fa-solid fa-phone"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-region" id="toastRegion"></div>
+
+<!-- First-time walkthrough -->
+<div class="modal fade" id="tourModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card border-0">
+      <div class="modal-body p-4 text-center" id="tourStepBody"></div>
+      <div class="modal-footer border-0 justify-content-between">
+        <button class="btn btn-sm btn-ghost" id="tourSkipBtn">Skip tour</button>
+        <div>
+          <span class="small text-muted-custom me-2" id="tourStepLabel"></span>
+          <button class="btn btn-sm btn-primary-solid" id="tourNextBtn">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

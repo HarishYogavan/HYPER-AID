@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Blog - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2 text-center">
+  <div class="container">
+    <span class="section-eyebrow">Emergency Tips & Articles</span>
+    <h1 class="section-title">The HyperAid Blog</h1>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      {% set posts = [
+        ("fa-heart-pulse","The First 5 Minutes After a Cardiac Emergency",
+         "Recognising a heart attack early changes outcomes more than almost anything else you can do. Watch for chest pressure or pain, shortness of breath, cold sweat and pain radiating to the arm or jaw. Call your emergency number immediately, keep the person seated and calm, loosen tight clothing, and if they are conscious and not allergic, a chewed 300mg aspirin can help. Never drive them yourself if an ambulance is available - paramedics can begin treatment the moment they arrive."),
+        ("fa-car-burst","Building a Roadside Emergency Kit That Actually Helps",
+         "A good kit is compact but purposeful: a reflective triangle, a torch, a basic first-aid kit, a seatbelt cutter, a phone charger, drinking water and a printed list of emergency contacts. Check it every few months - batteries drain and supplies expire even if never used. The goal isn't to handle every scenario yourself, it's to stay safe and visible until help arrives."),
+        ("fa-house-fire","Fire Safety at Home: The 2-Minute Escape Plan",
+         "Every household should be able to exit within two minutes of an alarm. Walk the plan with everyone in the home, agree on a meeting point outside, and practise low-crawling under smoke. Keep a fire extinguisher rated for your kitchen's needs, test smoke alarms monthly, and never go back inside for belongings once you're out."),
+        ("fa-droplet","Understanding Blood Donation and Why Banks Run Low",
+         "Blood has a shelf life - red cells last about 42 days, platelets just 5. That means banks need a steady stream of donors, not just emergency appeals. If you're eligible, regular donation (every 3 months for whole blood) does more good than a single dramatic gesture during a crisis."),
+        ("fa-baby","Choking First Aid for Infants vs Adults",
+         "The technique changes with age. For adults and children over one year, alternate 5 back blows and 5 abdominal thrusts. For infants under one, abdominal thrusts are too risky - use 5 back blows followed by 5 chest thrusts instead, supporting the head and neck throughout. If the object doesn't clear and the infant loses consciousness, begin infant CPR and call for help immediately."),
+        ("fa-cloud-showers-heavy","Staying Safe During Flash Floods",
+         "Just 15cm of fast-moving water can knock an adult off their feet, and 60cm can float a car. Never drive or walk through floodwater, move to higher ground early rather than waiting for official warnings if the signs are already there, and keep your phone charged so you can call for help even if you lose power at home.")
+      ] %}
+      {% for icon, title, body in posts %}
+      <div class="col-md-6 col-lg-4">
+        <div class="glass-card p-4 h-100">
+          <div class="feature-icon {{ 'accent' if loop.index is even else '' }}"><i class="fa-solid {{ icon }}"></i></div>
+          <h5 class="mt-2">{{ title }}</h5>
+          <p class="text-muted-custom small">{{ body }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

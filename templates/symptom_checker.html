@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Symptom Checker - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container text-center">
+    <span class="section-eyebrow">Guided help</span>
+    <h1 class="section-title">Symptom Checker</h1>
+    <p class="section-sub mx-auto mt-2">Answer a couple of quick taps instead of typing - I'll narrow it down to the right first-aid steps. General guidance only, not a diagnosis.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:680px">
+    <div class="glass-card p-4" id="checkerCard">
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <button id="backBtn" class="btn btn-sm btn-ghost d-none"><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="small text-muted-custom">Step <span id="stepCount">1</span></div>
+      </div>
+      <div id="checkerBody">
+        <p class="text-center text-muted-custom py-4">Loading...</p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let history = ['start'];
+
+function loadNode(nodeId) {
+  fetch(`/api/symptom-checker/${nodeId}`)
+    .then(r => r.json())
+    .then(data => renderNode(data));
+}
+
+function renderNode(data) {
+  document.getElementById('stepCount').textContent = history.length;
+  document.getElementById('backBtn').classList.toggle('d-none', history.length <= 1);
+  const body = document.getElementById('checkerBody');
+
+  if (data.type === 'question') {
+    body.innerHTML = `
+      <h5 class="mb-4">${data.question}</h5>
+      <div class="d-grid gap-2" id="optionsWrap"></div>`;
+    const wrap = document.getElementById('optionsWrap');
+    data.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-outline-primary text-start';
+      btn.textContent = opt.label;
+      btn.addEventListener('click', () => { history.push(opt.next); loadNode(opt.next); });
+      wrap.appendChild(btn);
+    });
+  } else {
+    const pillClass = data.severity === 'High' ? 'pill-high' : data.severity === 'Medium' ? 'pill-medium' : 'pill-low';
+    body.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">${data.title}</h5>
+        <span class="pill ${pillClass}">${data.severity}</span>
+      </div>
+      <p class="mb-4">${data.advice}</p>
+      ${data.severity === 'High' ? '<a href="tel:112" class="btn btn-emergency w-100 mb-2"><i class="fa-solid fa-phone me-2"></i>Call 112 now</a>' : ''}
+      <button class="btn btn-ghost w-100" id="restartBtn">Start over</button>`;
+    document.getElementById('restartBtn').addEventListener('click', () => { history = ['start']; loadNode('start'); });
+  }
+}
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  if (history.length > 1) { history.pop(); loadNode(history[history.length - 1]); }
+});
+
+loadNode('start');
+</script>
+{% endblock %}

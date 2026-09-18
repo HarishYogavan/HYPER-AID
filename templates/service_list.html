@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-0">
+  <div class="container">
+    <span class="section-eyebrow">Services</span>
+    <h1 class="section-title">{{ title }}</h1>
+    <form class="row g-2 mt-3" method="get">
+      <div class="col-md-6">
+        <input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Search by name or area...">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary-solid w-100" type="submit"><i class="fa-solid fa-search"></i> Search</button>
+      </div>
+      <div class="col-md-2">
+        <button type="button" id="locateBtn" class="btn btn-outline-primary w-100"><i class="fa-solid fa-location-crosshairs"></i> Sort by distance</button>
+      </div>
+    </form>
+  </div>
+</section>
+<section class="pt-3">
+  <div class="container">
+    {% if not rows %}
+      <div class="glass-card p-4 text-center text-muted-custom">No results found. Try a different search term.</div>
+    {% endif %}
+    <div class="row g-3" id="resultsGrid">
+      {% for r in rows %}
+      <div class="col-md-6">
+        <div class="glass-card p-3 h-100 result-item" data-lat="{{ r['latitude'] }}" data-lng="{{ r['longitude'] }}">
+          <div class="d-flex justify-content-between">
+            <h6 class="mb-1">{{ r['name'] }}</h6>
+            {% if 'status' in r.keys() %}<span class="pill {{ 'pill-low' if r['status']=='available' else 'pill-medium' }}">{{ r['status'] }}</span>{% endif %}
+          </div>
+          <p class="text-muted-custom small mb-2"><i class="fa-solid fa-location-dot me-1"></i>{{ r['address'] if 'address' in r.keys() else '' }}</p>
+          {% if 'beds_available' in r.keys() %}<p class="small mb-1"><i class="fa-solid fa-bed-pulse me-1 text-accent"></i>{{ r['beds_available'] }} beds available</p>{% endif %}
+          {% if 'blood_types_available' in r.keys() %}<p class="small mb-1"><i class="fa-solid fa-droplet me-1 text-accent"></i>{{ r['blood_types_available'] }}</p>{% endif %}
+          {% if 'open_24_hours' in r.keys() %}<p class="small mb-1">{% if r['open_24_hours'] %}<span class="pill pill-low">Open 24 hours</span>{% endif %}</p>{% endif %}
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <a href="tel:{{ r['phone'] }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-phone me-1"></i>{{ r['phone'] }}</a>
+            <span class="distance-badge small text-muted-custom"></span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('locateBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { showToast('Geolocation not supported on this browser.', 'warning'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    const items = Array.from(document.querySelectorAll('.result-item'));
+    items.forEach(el => {
+      const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+      if (isNaN(lat) || isNaN(lng)) return;
+      const R = 6371;
+      const dLat = (lat-latitude) * Math.PI/180, dLng = (lng-longitude) * Math.PI/180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(latitude*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      el.dataset.dist = dist.toFixed(2);
+      el.querySelector('.distance-badge').textContent = dist.toFixed(2) + ' km away';
+    });
+    items.sort((a,b) => (parseFloat(a.dataset.dist)||9999) - (parseFloat(b.dataset.dist)||9999));
+    const grid = document.getElementById('resultsGrid');
+    items.forEach(el => grid.appendChild(el.parentElement));
+    showToast('Sorted by distance from your location.', 'success');
+  }, () => showToast('Could not get your location.', 'danger'));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Services - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-0">
+  <div class="container text-center">
+    <span class="section-eyebrow">Services</span>
+    <h1 class="section-title">Six finders. One tap each.</h1>
+    <p class="section-sub mx-auto mt-2">Every finder ranks results by real distance from your current location, with one-tap calling and directions.</p>
+  </div>
+</section>
+<section class="pt-4">
+  <div class="container">
+    <div class="row g-4">
+      {% set services = [
+        ("hospitals","fa-hospital","Hospital Finder","Live bed availability and emergency-ward status."),
+        ("ambulances","fa-truck-medical","Ambulance Finder","Nearest available vehicle with driver contact."),
+        ("police","fa-building-shield","Police Station Finder","Report incidents and reach the closest station fast."),
+        ("fire","fa-fire-flame-curved","Fire Station Finder","Locate the closest fire response unit."),
+        ("pharmacies","fa-prescription-bottle-medical","Pharmacy Finder","Filter for 24-hour pharmacies near you."),
+        ("bloodbanks","fa-droplet","Blood Bank Finder","Check available blood types before you travel."),
+        ("vets","fa-paw","Vet Clinic Finder","Emergency and routine vet clinics for your pets.")
+      ] %}
+      {% for slug, icon, title, desc in services %}
+      <div class="col-md-4">
+        <a href="{{ url_for('service_category', category=slug) }}" class="text-reset">
+          <div class="glass-card service-card">
+            <div class="feature-icon {{ 'accent' if loop.index is even else '' }}"><i class="fa-solid {{ icon }}"></i></div>
+            <h5>{{ title }}</h5>
+            <p class="text-muted-custom">{{ desc }}</p>
+            <span class="btn btn-outline-primary btn-sm mt-2">View list <i class="fa-solid fa-arrow-right ms-1"></i></span>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<section class="bg-alt text-center">
+  <div class="container">
+    <h2 class="section-title">Want everything at once?</h2>
+    <p class="section-sub mx-auto mt-2 mb-4">The Emergency Dashboard combines all six finders in a single live view.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-emergency">Open Dashboard</a>
+  </div>
+</section>
+{% endblock %}

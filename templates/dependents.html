@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Dependents - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Guardian mode</span>
+    <h1 class="section-title">Dependents</h1>
+    <p class="section-sub mt-2">Manage a profile for someone who can't manage their own account - a child, an elderly parent, anyone in your care. You can trigger SOS on their behalf and share a printable medical card.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card p-4">
+          <h6 class="mb-3"><i class="fa-solid fa-user-shield text-accent me-2"></i>Add a dependent</h6>
+          <form method="post" action="{{ url_for('api_add_dependent') }}">
+            <div class="mb-3">
+              <label class="form-label small">Full name</label>
+              <input class="form-control" name="full_name" required>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-3">
+                <label class="form-label small">Relationship</label>
+                <input class="form-control" name="relationship" placeholder="e.g. Daughter, Parent">
+              </div>
+              <div class="col-6 mb-3">
+                <label class="form-label small">Date of birth</label>
+                <input class="form-control" type="date" name="date_of_birth">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Blood group</label>
+              <input class="form-control" name="blood_group">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Allergies</label>
+              <input class="form-control" name="allergies">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Medications</label>
+              <input class="form-control" name="medications">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Conditions</label>
+              <input class="form-control" name="conditions">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Notes</label>
+              <input class="form-control" name="notes">
+            </div>
+            <button class="btn btn-primary-solid w-100" type="submit">Add dependent</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        {% if not rows %}
+        <div class="glass-card p-4 text-center text-muted-custom">
+          <i class="fa-solid fa-user-shield fa-2x mb-2"></i>
+          <p class="mb-0">No dependents added yet.</p>
+        </div>
+        {% endif %}
+        {% for dep in rows %}
+        <div class="glass-card p-3 mb-3" data-dep-id="{{ dep['id'] }}">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">{{ dep['full_name'] }} <span class="badge bg-secondary ms-1">{{ dep['relationship'] or 'Dependent' }}</span></div>
+              <div class="small text-muted-custom">{{ dep['blood_group'] or '' }} {% if dep['allergies'] %} &middot; Allergies: {{ dep['allergies'] }}{% endif %}</div>
+            </div>
+            <form method="post" action="{{ url_for('api_delete_dependent', dependent_id=dep['id']) }}" onsubmit="return confirm('Remove this dependent profile?')">
+              <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+            </form>
+          </div>
+          <div class="d-flex gap-2 mt-2">
+            <a href="{{ url_for('dependent_card', token=dep['card_token']) }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-id-badge me-1"></i>Medical Card</a>
+            <button class="btn btn-sm btn-emergency dep-sos-btn"><i class="fa-solid fa-tower-broadcast me-1"></i>Trigger SOS for them</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('.dep-sos-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const depId = btn.closest('[data-dep-id]').dataset.depId;
+    const send = (lat, lng) => {
+      fetch(`/api/dependents/${depId}/sos`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lng }),
+      }).then(r => r.json()).then(data => showToast(data.message || 'SOS dispatched.', 'danger'));
+    };
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(p => send(p.coords.latitude, p.coords.longitude), () => send(null, null));
+    } else { send(null, null); }
+  });
+});
+</script>
+{% endblock %}

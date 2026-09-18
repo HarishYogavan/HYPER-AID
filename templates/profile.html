@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}My Profile - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Account</span>
+    <h1 class="section-title">My Profile</h1>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card p-4">
+          <div class="text-center mb-3">
+            <span class="feature-icon mx-auto" style="width:64px;height:64px;font-size:1.6rem"><i class="fa-solid fa-user"></i></span>
+            <h5 class="mt-2 mb-0">{{ user['full_name'] }}</h5>
+            <span class="badge {{ 'badge-role-admin' if user['role']=='admin' else 'badge-role-user' }} mt-1">{{ user['role'] }}</span>
+          </div>
+          <form method="post">
+            <div class="mb-3">
+              <label class="form-label small">Full name</label>
+              <input class="form-control" name="full_name" value="{{ user['full_name'] }}" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Email (read-only)</label>
+              <input class="form-control" value="{{ user['email'] }}" disabled>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Phone number</label>
+              <input class="form-control" name="phone" value="{{ user['phone'] or '' }}">
+            </div>
+            <hr>
+            <h6 class="small text-muted-custom text-uppercase mb-3">Medical info (for your emergency card)</h6>
+            <div class="row">
+              <div class="col-6 mb-3">
+                <label class="form-label small">Blood group</label>
+                <input class="form-control" name="blood_group" value="{{ user['blood_group'] or '' }}" placeholder="e.g. O+">
+              </div>
+              <div class="col-6 mb-3">
+                <label class="form-label small">Allergies</label>
+                <input class="form-control" name="allergies" value="{{ user['allergies'] or '' }}">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Medications</label>
+              <input class="form-control" name="medications" value="{{ user['medications'] or '' }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Conditions</label>
+              <input class="form-control" name="conditions" value="{{ user['conditions'] or '' }}">
+            </div>
+            <hr>
+            <h6 class="small text-muted-custom text-uppercase mb-3">Insurance</h6>
+            <div class="mb-3">
+              <label class="form-label small">Provider</label>
+              <input class="form-control" name="insurance_provider" value="{{ user['insurance_provider'] or '' }}">
+            </div>
+            <div class="mb-4">
+              <label class="form-label small">Policy number</label>
+              <input class="form-control" name="insurance_policy_number" value="{{ user['insurance_policy_number'] or '' }}">
+            </div>
+            <hr>
+            <h6 class="small text-muted-custom text-uppercase mb-3">Blood donation</h6>
+            <div class="mb-4">
+              <label class="form-label small">Last donation date</label>
+              <input class="form-control" type="date" name="last_blood_donation" value="{{ user['last_blood_donation'] or '' }}">
+              {% if donation_status %}
+              <div class="form-text {{ 'text-success' if donation_status.eligible_now else '' }}">
+                {% if donation_status.eligible_now %}
+                  <i class="fa-solid fa-circle-check me-1"></i>You're eligible to donate again now.
+                {% else %}
+                  <i class="fa-solid fa-hourglass-half me-1"></i>Eligible again in {{ donation_status.days_left }} days ({{ donation_status.next_eligible }}).
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+            <hr>
+            <div class="form-check form-switch mb-4">
+              <input class="form-check-input" type="checkbox" name="anomaly_checkin_enabled" id="anomalyToggle" {{ 'checked' if user['anomaly_checkin_enabled'] }}>
+              <label class="form-check-label small" for="anomalyToggle">Gently check on me if I haven't opened HyperAid in a while</label>
+            </div>
+            <button class="btn btn-primary-solid w-100" type="submit">Save changes</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="glass-card dash-tile text-center">
+              <div class="count" style="font-size:1.5rem">{{ contacts_count }}</div>
+              <div class="small text-muted-custom">Contacts</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="glass-card dash-tile text-center">
+              <div class="count" style="font-size:1.5rem">{{ reports|length }}</div>
+              <div class="small text-muted-custom">Recent reports</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="glass-card dash-tile text-center">
+              <div class="count" style="font-size:1.5rem">{{ safety_score }}</div>
+              <div class="small text-muted-custom">Safety score</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="glass-card dash-tile text-center">
+              <div class="count" style="font-size:1.5rem">{{ sos_count }}</div>
+              <div class="small text-muted-custom">SOS uses (90d)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card p-4 mb-3">
+          <h6 class="mb-3"><i class="fa-solid fa-grid-2 text-accent me-2"></i>Quick links</h6>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('emergency_card', token=user['medical_card_token']) }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-id-badge me-1"></i>Emergency Card</a>
+            <a href="{{ url_for('vaccinations_page') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-syringe me-1"></i>Vaccinations</a>
+            <a href="{{ url_for('kit_inventory_page') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-kit-medical me-1"></i>Kit Inventory</a>
+            <a href="{{ url_for('medication_reminders_page') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pills me-1"></i>Medication Reminders</a>
+            <a href="{{ url_for('checkin_timer_page') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-hourglass-half me-1"></i>Check-in Timer</a>
+            <a href="{{ url_for('contacts_page') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-address-book me-1"></i>Contacts</a>
+            <a href="{{ url_for('api_export_data') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-download me-1"></i>Export my data</a>
+            <button class="btn btn-sm btn-outline-primary" onclick="enableShakeSos()"><i class="fa-solid fa-mobile-screen-button me-1"></i>Enable shake-to-SOS</button>
+          </div>
+          <p class="small text-muted-custom mt-2 mb-0">Shake-to-SOS uses your phone's motion sensor - shake firmly 3 times to trigger SOS hands-free. <a href="#" onclick="disableShakeSos();return false;">Turn off</a></p>
+        </div>
+
+        <div class="glass-card p-4">
+          <h6 class="mb-3"><i class="fa-solid fa-clock-rotate-left text-accent me-2"></i>Recent activity</h6>
+          {% if not reports %}
+          <p class="text-muted-custom small mb-0">No activity yet. Your SOS alerts and accident reports will show up here.</p>
+          {% endif %}
+          {% for r in reports %}
+          <div class="d-flex justify-content-between align-items-center py-2 border-bottom" style="border-color:var(--border)!important">
+            <div>
+              <div class="fw-semibold text-capitalize">{{ r['report_type'] }}</div>
+              <div class="small text-muted-custom">{{ r['description'] or '' }}</div>
+            </div>
+            <span class="pill {{ 'pill-high' if r['severity']=='High' else 'pill-medium' if r['severity']=='Medium' else 'pill-low' }}">{{ r['severity'] or r['status'] }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

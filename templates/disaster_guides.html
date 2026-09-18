@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Disaster Guides - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2 text-center">
+  <div class="container">
+    <span class="section-eyebrow">Be ready, not generic</span>
+    <h1 class="section-title">Disaster Guides</h1>
+    <p class="section-sub mx-auto mt-2">Region-appropriate checklists for specific hazards - not general tips, but what to actually do before, during and after each one.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <ul class="nav nav-pills justify-content-center mb-4 flex-wrap" id="hazardTabs">
+      <li class="nav-item"><button class="nav-link active" data-hazard="earthquake">Earthquake</button></li>
+      <li class="nav-item"><button class="nav-link" data-hazard="flood">Flood</button></li>
+      <li class="nav-item"><button class="nav-link" data-hazard="fire">Fire / Wildfire</button></li>
+      <li class="nav-item"><button class="nav-link" data-hazard="storm">Storm / Cyclone</button></li>
+    </ul>
+
+    {% set guides = {
+      "earthquake": {
+        "icon": "fa-house-crack",
+        "before": ["Secure heavy furniture and shelving to walls", "Identify safe spots in each room (under sturdy tables, away from windows)", "Keep a torch, whistle, and sturdy shoes near your bed", "Agree on a family meeting point outside"],
+        "during": ["Drop, Cover, and Hold On - get under sturdy furniture", "Stay away from windows, mirrors, and heavy objects", "If outdoors, move to open ground away from buildings and power lines", "If driving, pull over away from bridges/overpasses and stay in the vehicle"],
+        "after": ["Expect aftershocks - stay alert", "Check yourself and others for injuries before helping others", "Check for gas leaks by smell, not with a flame - shut off the supply if you smell gas", "Avoid damaged buildings until declared safe"]
+      },
+      "flood": {
+        "icon": "fa-house-flood-water",
+        "before": ["Know your area's flood risk and evacuation routes", "Move valuables and important documents to higher levels", "Keep a battery/hand-crank radio for updates when power is out", "Charge phones and power banks ahead of forecast storms"],
+        "during": ["Move to higher ground immediately - don't wait for official orders if water is rising fast", "Never walk or drive through floodwater - 15cm can knock you down, 60cm can float a car", "Avoid contact with floodwater - it may be contaminated or electrically charged", "Turn off electricity at the mains if it's safe to reach"],
+        "after": ["Don't return home until authorities say it's safe", "Avoid standing water - it can hide hazards or downed lines", "Photograph damage before cleanup for insurance", "Discard any food or medicine that contacted floodwater"]
+      },
+      "fire": {
+        "icon": "fa-fire",
+        "before": ["Clear dry vegetation and debris from around your home", "Plan two escape routes from your neighbourhood", "Keep a go-bag ready with documents, medication, and essentials", "Sign up for local wildfire/emergency alerts"],
+        "during": ["Evacuate early - don't wait until the fire is visible", "Close all windows and doors, but leave them unlocked", "Wear a mask/damp cloth to reduce smoke inhalation while leaving", "If trapped, call emergency services and stay low, away from windows"],
+        "after": ["Don't return until officials confirm it's safe", "Watch for hot spots and unstable structures", "Check smoke detectors and air quality before staying long", "Document damage for insurance before cleanup"]
+      },
+      "storm": {
+        "icon": "fa-hurricane",
+        "before": ["Secure or bring in loose outdoor items", "Stock up on water, non-perishable food, and medication for several days", "Charge devices and keep a backup power source", "Know your community's designated shelter locations"],
+        "during": ["Stay indoors, away from windows and glass doors", "Move to the lowest, most interior room if a tornado warning is issued", "Avoid using electrical appliances connected to wiring during lightning", "Do not go outside during a lull - it may be the eye of the storm, not the end"],
+        "after": ["Watch for downed power lines - treat all of them as live", "Avoid flooded roads on the way back", "Check on neighbours, especially elderly or isolated ones", "Report gas leaks or structural damage to authorities before re-entering"]
+      }
+    } %}
+
+    {% for hazard, data in guides.items() %}
+    <div class="hazard-pane {{ '' if hazard == 'earthquake' else 'd-none' }}" id="pane-{{ hazard }}">
+      <div class="text-center mb-4">
+        <span class="feature-icon accent mx-auto" style="width:56px;height:56px;font-size:1.4rem"><i class="fa-solid {{ data.icon }}"></i></span>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="glass-card p-4 h-100">
+            <h6 class="text-accent mb-3"><i class="fa-solid fa-list-check me-2"></i>Before</h6>
+            <ul class="small ps-3">{% for item in data.before %}<li class="mb-2">{{ item }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="glass-card p-4 h-100">
+            <h6 class="text-accent mb-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>During</h6>
+            <ul class="small ps-3">{% for item in data.during %}<li class="mb-2">{{ item }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="glass-card p-4 h-100">
+            <h6 class="text-accent mb-3"><i class="fa-solid fa-arrow-rotate-left me-2"></i>After</h6>
+            <ul class="small ps-3">{% for item in data.after %}<li class="mb-2">{{ item }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('#hazardTabs .nav-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#hazardTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.hazard-pane').forEach(p => p.classList.add('d-none'));
+    document.getElementById('pane-' + btn.dataset.hazard).classList.remove('d-none');
+  });
+});
+</script>
+{% endblock %}

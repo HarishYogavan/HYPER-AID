@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Live Location Tracker - HyperAid{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Stay visible</span>
+    <h1 class="section-title">Live Location Tracker</h1>
+    <p class="section-sub mt-2">Start tracking and share the link with someone you trust - they'll see your position update live, right up until you stop or the link expires. No account needed on their end.</p>
+  </div>
+</section>
+
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="glass-card p-4" id="controlCard">
+          <div id="idleControls">
+            <div class="mb-3">
+              <label class="form-label small">Label (optional)</label>
+              <input class="form-control" id="labelInput" placeholder="e.g. Walking home">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Share for</label>
+              <select class="form-select" id="durationSelect">
+                <option value="30m">30 minutes</option>
+                <option value="1h" selected>1 hour</option>
+                <option value="4h">4 hours</option>
+                <option value="12h">12 hours</option>
+              </select>
+            </div>
+            <button id="startBtn" class="btn btn-emergency w-100"><i class="fa-solid fa-location-crosshairs me-2"></i>Start sharing my location</button>
+          </div>
+
+          <div id="activeControls" class="d-none">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <span class="position-relative d-inline-block" style="width:14px;height:14px">
+                <span class="sos-ring" style="background:var(--color-accent);width:14px;height:14px;border-radius:50%;position:absolute"></span>
+              </span>
+              <span class="fw-semibold text-accent">Live - sharing now</span>
+            </div>
+            <p class="small text-muted-custom mb-2">Expires: <span id="expiresLabel" class="mono"></span></p>
+            <div class="input-group mb-3">
+              <input type="text" class="form-control" id="shareLink" readonly>
+              <button class="btn btn-outline-primary" id="copyBtn"><i class="fa-solid fa-copy"></i></button>
+            </div>
+            <div class="row g-2 mb-3 text-center">
+              <div class="col-6">
+                <div class="dash-tile solid-card py-2">
+                  <div class="count" style="font-size:1.2rem" id="pingCount">0</div>
+                  <div class="small text-muted-custom">Updates sent</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="dash-tile solid-card py-2">
+                  <div class="count" style="font-size:1.2rem" id="lastUpdate">--</div>
+                  <div class="small text-muted-custom">Last update</div>
+                </div>
+              </div>
+            </div>
+            <button id="stopBtn" class="btn btn-outline-primary w-100"><i class="fa-solid fa-stop me-2"></i>Stop sharing</button>
+          </div>
+        </div>
+
+        <div class="glass-card p-4 mt-3">
+          <h6 class="mb-2"><i class="fa-solid fa-circle-info text-accent me-2"></i>How it works</h6>
+          <ul class="small text-muted-custom mb-0 ps-3">
+            <li>Your browser sends location updates in the background while this tab is open.</li>
+            <li>Anyone with the link sees your position on a live map - no login required.</li>
+            <li>The link stops working automatically once it expires, or immediately when you tap Stop.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div id="map" class="map-frame"></div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+let map = L.map('map').setView([11.0168, 76.9558], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+let marker = null, trailLine = null, trailCoords = [];
+let watchId = null, pingCount = 0, currentToken = null;
+
+const idleControls = document.getElementById('idleControls');
+const activeControls = document.getElementById('activeControls');
+
+function updateMapPosition(lat, lng) {
+  if (!marker) {
+    marker = L.marker([lat, lng]).addTo(map);
+    trailLine = L.polyline([], { color: '#E63946', weight: 4 }).addTo(map);
+    map.setView([lat, lng], 15);
+  } else {
+    marker.setLatLng([lat, lng]);
+  }
+  trailCoords.push([lat, lng]);
+  trailLine.setLatLngs(trailCoords);
+}
+
+function sendPing(lat, lng, accuracy, speed) {
+  fetch('/api/location/ping', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: currentToken, lat, lng, accuracy, speed }),
+  }).then(r => r.json()).then(data => {
+    if (data.error) { showToast(data.error, 'danger'); stopTracking(false); return; }
+    pingCount += 1;
+    document.getElementById('pingCount').textContent = pingCount;
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+  });
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { showToast('Geolocation not supported on this browser.', 'warning'); return; }
+  const label = document.getElementById('labelInput').value || 'Live location';
+  const duration = document.getElementById('durationSelect').value;
+
+  fetch('/api/location/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label, duration }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      currentToken = data.token;
+      document.getElementById('shareLink').value = data.track_url;
+      document.getElementById('expiresLabel').textContent = new Date(data.expires_at).toLocaleString();
+      idleControls.classList.add('d-none');
+      activeControls.classList.remove('d-none');
+      showToast('Live sharing started - link is ready to send.', 'success');
+
+      watchId = navigator.geolocation.watchPosition(pos => {
+        const { latitude, longitude, accuracy, speed } = pos.coords;
+        updateMapPosition(latitude, longitude);
+        sendPing(latitude, longitude, accuracy, speed);
+      }, () => showToast('Location access denied - tracking cannot continue.', 'danger'),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+    });
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const input = document.getElementById('shareLink');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => showToast('Link copied to clipboard.', 'success'));
+});
+
+function stopTracking(callApi = true) {
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  if (callApi && currentToken) {
+    fetch('/api/location/stop', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: currentToken }),
+    });
+  }
+  activeControls.classList.add('d-none');
+  idleControls.classList.remove('d-none');
+  pingCount = 0;
+  showToast('Location sharing stopped.', 'info');
+}
+
+document.getElementById('stopBtn').addEventListener('click', () => stopTracking(true));
+
+{% if active_share %}
+// Resume an already-active session on page reload
+currentToken = "{{ active_share['share_token'] }}";
+document.getElementById('shareLink').value = "{{ url_for('track_public', token=active_share['share_token'], _external=True) }}";
+document.getElementById('expiresLabel').textContent = new Date("{{ active_share['expires_at'] }}").toLocaleString();
+idleControls.classList.add('d-none');
+activeControls.classList.remove('d-none');
+if (navigator.geolocation) {
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const { latitude, longitude, accuracy, speed } = pos.coords;
+    updateMapPosition(latitude, longitude);
+    sendPing(latitude, longitude, accuracy, speed);
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+}
+{% endif %}
+</script>
+{% endblock %}

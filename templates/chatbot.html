@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block title %}HYPER AI Assistant - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">HYPER AI Assistant</span>
+    <h1 class="section-title">Tell me what's happening</h1>
+    <p class="section-sub mt-2">Type or speak your situation. HYPER AI covers everything from critical emergencies (cardiac, choking, seizures) to everyday first aid and home remedies (fever, headache, indigestion, minor burns, and more). Responses read back automatically once "Voice output" is on. This is general guidance, not a diagnosis, and never replaces calling emergency services for serious situations.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="glass-card chat-shell">
+          <div class="d-flex justify-content-between align-items-center p-3 border-bottom" style="border-color:var(--border)">
+            <div class="d-flex align-items-center gap-2">
+              <span class="feature-icon accent" style="width:38px;height:38px;font-size:1rem"><i class="fa-solid fa-robot"></i></span>
+              <div>
+                <div class="fw-semibold">HYPER AI Assistant</div>
+                <div class="small text-muted-custom"><span class="text-success">●</span> Online</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <select id="langSelect" class="form-select form-select-sm" style="width:auto">
+                <option value="en-US">English</option>
+                <option value="hi-IN">हिन्दी</option>
+                <option value="ta-IN">தமிழ்</option>
+                <option value="es-ES">Español</option>
+                <option value="fr-FR">Français</option>
+              </select>
+              <select id="modeSelect" class="form-select form-select-sm" style="width:auto">
+                <option value="general">General</option>
+                <option value="pregnancy">Pregnancy</option>
+                <option value="pediatric">Child</option>
+                <option value="pet">Pet</option>
+              </select>
+              <button id="voiceOutToggle" class="icon-btn" title="Toggle voice output"><i class="fa-solid fa-volume-high"></i></button>
+              <button id="wakeWordToggle" class="icon-btn" title="Enable 'Hey HYPER' voice wake word"><i class="fa-solid fa-ear-listen"></i></button>
+            </div>
+          </div>
+          <div class="chat-window" id="chatWindow">
+            <div class="msg msg-bot">Hi, I'm HYPER AI. Describe what's happening - anything from "someone is bleeding heavily" to "I have a sore throat" - and I'll guide you with first aid or home remedies. You can also tap the mic to speak.</div>
+          </div>
+          <div class="chat-input-bar d-flex gap-2 align-items-center">
+            <button id="micBtn" class="mic-btn"><i class="fa-solid fa-microphone"></i></button>
+            <input type="text" id="chatInput" class="form-control" placeholder="Describe the emergency...">
+            <button id="sendBtn" class="btn btn-primary-solid"><i class="fa-solid fa-paper-plane"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="glass-card p-4 mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fa-solid fa-location-dot text-accent me-2"></i>Location</h6>
+            <button id="shareLocBtn" class="btn btn-sm btn-outline-primary">Share</button>
+          </div>
+          <p class="small text-muted-custom mb-0 mt-1" id="locStatus">Not shared - hospital answers will be generic without it.</p>
+        </div>
+        <div class="glass-card p-4 mb-3">
+          <h6><i class="fa-solid fa-bolt text-accent me-2"></i>Quick prompts</h6>
+          <ul class="nav nav-pills nav-pills-sm mt-2 mb-2" id="promptTabs">
+            <li class="nav-item"><button class="nav-link active" data-tab="emergency" style="font-size:.78rem">Emergencies</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="remedy" style="font-size:.78rem">Everyday / Remedies</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="pet" style="font-size:.78rem">Pets</button></li>
+          </ul>
+          <div id="promptPane-emergency" class="d-flex flex-wrap gap-2" style="max-height:180px;overflow-y:auto">
+            {% for q in ["Chest pain","Severe bleeding","Car accident","Choking","Snake bite","Not breathing",
+                          "Allergic reaction","Seizure","Poisoning","Drowning","Electric shock","Heat stroke",
+                          "Hypothermia","Panic attack","Low blood sugar","Asthma attack","Broken bone","Fainting","Nosebleed"] %}
+            <button class="btn btn-sm btn-ghost quick-prompt">{{ q }}</button>
+            {% endfor %}
+          </div>
+          <div id="promptPane-remedy" class="d-flex flex-wrap gap-2 d-none" style="max-height:180px;overflow-y:auto">
+            {% for q in ["Fever","Cold or flu","Cough","Sore throat","Headache","Stomach ache","Diarrhea",
+                          "Vomiting","Constipation","Insect bite","Sunburn","Muscle cramp","Back pain",
+                          "Toothache","Earache","Eye irritation","Hiccups","Motion sickness","Dehydration",
+                          "Bruise","Blister","Hangover","Trouble sleeping","Food poisoning"] %}
+            <button class="btn btn-sm btn-ghost quick-prompt">{{ q }}</button>
+            {% endfor %}
+          </div>
+          <div id="promptPane-pet" class="d-flex flex-wrap gap-2 d-none" style="max-height:180px;overflow-y:auto">
+            {% for q in ["My pet is choking","They ate chocolate","What foods are toxic to pets?","Heat stroke",
+                          "Bleeding paw","Seizure","Bloated stomach","Broken leg","Snake bite","Bee sting","Nearest vet"] %}
+            <button class="btn btn-sm btn-ghost quick-prompt" data-pet="1">{{ q }}</button>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="glass-card p-4">
+          <h6><i class="fa-solid fa-phone-volume text-accent me-2"></i>Direct lines</h6>
+          <ul class="list-unstyled small mt-2 mb-0">
+            {% for name, number in emergency_numbers.items() %}
+            <li class="d-flex justify-content-between py-1"><span>{{ name }}</span><a href="tel:{{ number }}" class="fw-semibold">{{ number }}</a></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const chatWindow = document.getElementById('chatWindow');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
+const voiceOutToggle = document.getElementById('voiceOutToggle');
+const langSelect = document.getElementById('langSelect');
+const modeSelect = document.getElementById('modeSelect');
+let voiceOutputOn = true;
+let userLat = null, userLng = null;
+
+document.getElementById('shareLocBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { showToast('Geolocation not supported.', 'warning'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    document.getElementById('locStatus').textContent = 'Location shared - hospital answers will be specific to you.';
+    showToast('Location shared with the assistant.', 'success');
+  }, () => showToast('Could not get your location.', 'danger'));
+});
+
+function addMsg(text, who, extra) {
+  const div = document.createElement('div');
+  div.className = `msg msg-${who}`;
+  div.textContent = text;
+
+  if (who === 'bot' && extra) {
+    if (extra.category === 'remedy') {
+      div.style.borderLeft = '3px solid var(--color-success)';
+    } else if (extra.category === 'emergency' || extra.critical) {
+      div.style.borderLeft = '3px solid var(--color-accent)';
+    }
+    if (extra.critical) {
+      const sosBtn = document.createElement('button');
+      sosBtn.className = 'btn btn-emergency btn-sm w-100 mt-2';
+      sosBtn.innerHTML = '<i class="fa-solid fa-tower-broadcast me-2"></i>Trigger SOS now';
+      sosBtn.addEventListener('click', () => triggerSOS());
+      div.appendChild(document.createElement('br'));
+      div.appendChild(sosBtn);
+    }
+    if (extra.follow_ups && extra.follow_ups.length) {
+      const wrap = document.createElement('div');
+      wrap.className = 'd-flex flex-wrap gap-2 mt-2';
+      extra.follow_ups.forEach(f => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-primary';
+        btn.textContent = f;
+        btn.addEventListener('click', () => sendMessage(f));
+        wrap.appendChild(btn);
+      });
+      div.appendChild(wrap);
+    }
+    if (extra.disclaimer) {
+      const small = document.createElement('div');
+      small.className = 'small mt-2 opacity-75';
+      small.style.fontSize = '0.72rem';
+      small.textContent = extra.disclaimer;
+      div.appendChild(small);
+    }
+  }
+  chatWindow.appendChild(div);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function speak(text) {
+  if (!voiceOutputOn || !('speechSynthesis' in window)) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = langSelect.value;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
+
+function sendMessage(text) {
+  if (!text.trim()) return;
+  addMsg(text, 'user');
+  chatInput.value = '';
+  fetch('/api/chatbot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text, lang: langSelect.value, mode: modeSelect.value, lat: userLat, lng: userLng }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      const reply = data.reply || "Sorry, I couldn't process that.";
+      addMsg(reply, 'bot', { disclaimer: data.disclaimer, critical: data.critical, follow_ups: data.follow_ups, category: data.category });
+      speak(reply);
+    })
+    .catch(() => addMsg('Connection issue - if this is urgent, please call 112 directly.', 'bot'));
+}
+
+sendBtn.addEventListener('click', () => sendMessage(chatInput.value));
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(chatInput.value); });
+
+document.querySelectorAll('.quick-prompt').forEach(btn => {
+  btn.addEventListener('click', () => sendMessage(btn.textContent));
+});
+
+document.querySelectorAll('#promptTabs .nav-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#promptTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('promptPane-emergency').classList.toggle('d-none', btn.dataset.tab !== 'emergency');
+    document.getElementById('promptPane-remedy').classList.toggle('d-none', btn.dataset.tab !== 'remedy');
+    document.getElementById('promptPane-pet').classList.toggle('d-none', btn.dataset.tab !== 'pet');
+    if (btn.dataset.tab === 'pet') modeSelect.value = 'pet';
+    else if (modeSelect.value === 'pet') modeSelect.value = 'general';
+  });
+});
+
+voiceOutToggle.addEventListener('click', () => {
+  voiceOutputOn = !voiceOutputOn;
+  voiceOutToggle.innerHTML = voiceOutputOn
+    ? '<i class="fa-solid fa-volume-high"></i>' : '<i class="fa-solid fa-volume-xmark"></i>';
+  if (!voiceOutputOn) window.speechSynthesis.cancel();
+});
+
+/* ---------- Voice input (Web Speech API) ---------- */
+let recognition = null;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  micBtn.addEventListener('click', () => {
+    recognition.lang = langSelect.value;
+    recognition.start();
+    micBtn.classList.add('listening');
+  });
+  recognition.addEventListener('result', e => {
+    const transcript = e.results[0][0].transcript;
+    sendMessage(transcript);
+  });
+  recognition.addEventListener('end', () => micBtn.classList.remove('listening'));
+  recognition.addEventListener('error', () => {
+    micBtn.classList.remove('listening');
+    showToast('Voice input could not be captured. Please try typing instead.', 'warning');
+  });
+} else {
+  micBtn.addEventListener('click', () => showToast('Voice input is not supported in this browser.', 'warning'));
+}
+
+/* ---------- Voice wake word ("Hey HYPER") ---------- */
+let wakeRecognition = null, wakeActive = false;
+const wakeWordToggle = document.getElementById('wakeWordToggle');
+
+function startWakeListening() {
+  if (!SpeechRecognition) { showToast('Wake word needs voice support, which this browser lacks.', 'warning'); return; }
+  wakeRecognition = new SpeechRecognition();
+  wakeRecognition.continuous = true;
+  wakeRecognition.interimResults = true;
+  wakeRecognition.lang = 'en-US';
+
+  wakeRecognition.addEventListener('result', e => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join(' ').toLowerCase();
+    if (transcript.includes('hey hyper') || transcript.includes('hi hyper')) {
+      showToast('Listening...', 'primary');
+      if (navigator.vibrate) navigator.vibrate(100);
+      wakeRecognition.stop();
+      // Hand off to the normal one-shot recognizer to capture the actual request.
+      setTimeout(() => { if (recognition) { recognition.lang = langSelect.value; recognition.start(); micBtn.classList.add('listening'); } }, 300);
+    }
+  });
+  wakeRecognition.addEventListener('end', () => { if (wakeActive) wakeRecognition.start(); }); // auto-restart while enabled
+  wakeRecognition.addEventListener('error', () => {});
+  wakeRecognition.start();
+}
+
+wakeWordToggle.addEventListener('click', () => {
+  wakeActive = !wakeActive;
+  wakeWordToggle.classList.toggle('mic-btn', wakeActive);
+  if (wakeActive) {
+    startWakeListening();
+    showToast('Wake word on - say "Hey HYPER" any time to start talking.', 'success');
+  } else {
+    if (wakeRecognition) wakeRecognition.stop();
+    showToast('Wake word turned off.', 'primary');
+  }
+});
+</script>
+{% endblock %}

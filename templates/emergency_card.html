@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Emergency Card - {{ card_user['full_name'] }}{% endblock %}
+{% block extra_head %}
+<style>
+@media print {
+  .app-navbar, .app-footer, .sos-fab, #scrollTopBtn, .no-print { display: none !important; }
+  body { background: #fff !important; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container text-center">
+    <span class="section-eyebrow">Emergency Medical Card</span>
+    <h1 class="section-title">{{ card_user['full_name'] }}</h1>
+    <p class="section-sub mx-auto mt-2">Show this to first responders, or scan the QR code from a phone lock screen.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:640px">
+    <div class="glass-card p-4">
+      <div class="row g-4 align-items-center">
+        <div class="col-md-8">
+          <table class="table table-borderless mb-0">
+            <tr><td class="text-muted-custom small" style="width:40%">Blood group</td><td class="fw-semibold">{{ card_user['blood_group'] or 'Not provided' }}</td></tr>
+            <tr><td class="text-muted-custom small">Phone</td><td>{{ card_user['phone'] or 'Not provided' }}</td></tr>
+          </table>
+          <div id="breakGlassPrompt" class="mt-3 no-print">
+            <button class="btn btn-sm btn-outline-primary" onclick="revealSensitive()"><i class="fa-solid fa-shield-halved me-1"></i>Tap to reveal allergies, medications &amp; conditions</button>
+          </div>
+          <table class="table table-borderless mb-0 d-none" id="sensitiveTable">
+            <tr><td class="text-muted-custom small" style="width:40%">Allergies</td><td>{{ card_user['allergies'] or 'None recorded' }}</td></tr>
+            <tr><td class="text-muted-custom small">Medications</td><td>{{ card_user['medications'] or 'None recorded' }}</td></tr>
+            <tr><td class="text-muted-custom small">Conditions</td><td>{{ card_user['conditions'] or 'None recorded' }}</td></tr>
+          </table>
+        </div>
+        <div class="col-md-4 text-center">
+          <div id="qrcode" class="d-inline-block p-2 bg-white rounded"></div>
+          <p class="small text-muted-custom mt-2 mb-0">Scan for this card</p>
+        </div>
+      </div>
+      <hr>
+      <h6 class="mb-2">Emergency contacts</h6>
+      {% if not contacts %}
+      <p class="small text-muted-custom mb-0">No contacts listed.</p>
+      {% endif %}
+      {% for c in contacts %}
+      <p class="small mb-1"><i class="fa-solid fa-phone text-accent me-2"></i>{{ c['name'] }} ({{ c['relationship'] or 'Contact' }}) - {{ c['phone'] }}</p>
+      {% endfor %}
+      {% if card_user['insurance_provider'] %}
+      <hr>
+      <h6 class="mb-2">Insurance</h6>
+      <p class="small mb-0">{{ card_user['insurance_provider'] }} {% if card_user['insurance_policy_number'] %} - Policy #{{ card_user['insurance_policy_number'] }}{% endif %}</p>
+      {% endif %}
+      {% if vaccinations %}
+      <hr>
+      <h6 class="mb-2">Vaccinations</h6>
+      {% for v in vaccinations %}
+      <p class="small mb-1">{{ v['vaccine_name'] }} <span class="text-muted-custom">({{ v['date_administered'] or 'date unknown' }})</span></p>
+      {% endfor %}
+      {% endif %}
+      <button class="btn btn-outline-primary w-100 mt-3 no-print" onclick="window.print()"><i class="fa-solid fa-print me-2"></i>Print this card</button>
+      <button class="btn btn-outline-primary w-100 mt-2 no-print" id="nfcWriteBtn"><i class="fa-solid fa-wifi me-2"></i>Write to NFC tag</button>
+      <a href="{{ url_for('fridge_magnet', token=card_user['medical_card_token']) }}" class="btn btn-ghost w-100 mt-2 no-print" target="_blank"><i class="fa-solid fa-magnet me-2"></i>Fridge magnet version</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+new QRCode(document.getElementById("qrcode"), {
+  text: window.location.href,
+  width: 140, height: 140,
+});
+
+function revealSensitive() {
+  document.getElementById('sensitiveTable').classList.remove('d-none');
+  document.getElementById('breakGlassPrompt').classList.add('d-none');
+}
+// Printed copies should always show full info - no point hiding it on paper.
+window.addEventListener('beforeprint', revealSensitive);
+
+document.getElementById('nfcWriteBtn').addEventListener('click', async () => {
+  if (!('NDEFReader' in window)) {
+    showToast('NFC writing needs Chrome on an Android phone with NFC hardware - not supported here.', 'warning');
+    return;
+  }
+  try {
+    const ndef = new NDEFReader();
+    await ndef.write({ records: [{ recordType: 'url', data: window.location.href }] });
+    showToast('Hold your phone near the NFC tag now...', 'primary');
+  } catch (err) {
+    showToast('Could not write to a tag - make sure NFC is on and a blank tag is nearby.', 'danger');
+  }
+});
+</script>
+{% endblock %}

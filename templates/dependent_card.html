@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ dep['full_name'] }}'s Medical Card - HyperAid{% endblock %}
+{% block extra_head %}
+<style>
+@media print {
+  .app-navbar, .app-footer, .sos-fab, #scrollTopBtn, .no-print { display: none !important; }
+  body { background: #fff !important; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container text-center">
+    <span class="section-eyebrow">Medical Card</span>
+    <h1 class="section-title">{{ dep['full_name'] }}</h1>
+    <p class="section-sub mx-auto mt-2">Managed by a guardian - {{ guardian['full_name'] if guardian else 'Unknown' }}.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:600px">
+    <div class="glass-card p-4">
+      <table class="table table-borderless mb-0">
+        <tr><td class="text-muted-custom small" style="width:40%">Relationship</td><td class="fw-semibold">{{ dep['relationship'] or 'Not specified' }}</td></tr>
+        <tr><td class="text-muted-custom small">Date of birth</td><td>{{ dep['date_of_birth'] or 'Not recorded' }}</td></tr>
+        <tr><td class="text-muted-custom small">Blood group</td><td>{{ dep['blood_group'] or 'Not recorded' }}</td></tr>
+        <tr><td class="text-muted-custom small">Allergies</td><td>{{ dep['allergies'] or 'None recorded' }}</td></tr>
+        <tr><td class="text-muted-custom small">Medications</td><td>{{ dep['medications'] or 'None recorded' }}</td></tr>
+        <tr><td class="text-muted-custom small">Conditions</td><td>{{ dep['conditions'] or 'None recorded' }}</td></tr>
+        <tr><td class="text-muted-custom small">Guardian contact</td><td>{{ guardian['full_name'] if guardian else '-' }} {% if guardian and guardian['phone'] %} - {{ guardian['phone'] }}{% endif %}</td></tr>
+      </table>
+      {% if dep['notes'] %}<hr><p class="small mb-0">{{ dep['notes'] }}</p>{% endif %}
+      <button class="btn btn-outline-primary w-100 mt-3 no-print" onclick="window.print()"><i class="fa-solid fa-print me-2"></i>Print this card</button>
+    </div>
+  </div>
+</section>
+{% endblock %}

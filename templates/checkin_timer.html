@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Check-in Timer - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Before you go somewhere isolated</span>
+    <h1 class="section-title">Danger-Zone Check-in Timer</h1>
+    <p class="section-sub mt-2">Set a timer before a hike, a late walk, or a solo trip. If you don't check in before it runs out, your emergency contacts are alerted automatically.</p>
+    <div class="alert alert-warning glass-card mt-3 small"><i class="fa-solid fa-triangle-exclamation me-2"></i>This works only while this browser tab stays open on your device - it can't run in the background if the tab or browser is closed.</div>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:560px">
+    <div class="glass-card p-4" id="idleCard">
+      <div class="mb-3">
+        <label class="form-label small">What are you doing?</label>
+        <input class="form-control" id="labelInput" placeholder="e.g. Solo hike on Red Trail">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small">Check in within</label>
+        <select class="form-select" id="minutesSelect">
+          <option value="15">15 minutes</option>
+          <option value="30" selected>30 minutes</option>
+          <option value="60">1 hour</option>
+          <option value="120">2 hours</option>
+          <option value="240">4 hours</option>
+        </select>
+      </div>
+      <button id="startBtn" class="btn btn-emergency w-100"><i class="fa-solid fa-hourglass-start me-2"></i>Start timer</button>
+    </div>
+
+    <div class="glass-card p-4 text-center d-none" id="activeCard">
+      <p class="small text-muted-custom mb-1" id="activeLabel"></p>
+      <div class="display-4 mono fw-bold my-3" id="countdown">--:--</div>
+      <button id="checkinBtn" class="btn btn-emergency w-100 mb-2"><i class="fa-solid fa-check me-2"></i>I'm okay - check in</button>
+      <button id="cancelBtn" class="btn btn-outline-primary w-100">Cancel timer</button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let timerId = null, deadline = null, intervalId = null;
+const idleCard = document.getElementById('idleCard');
+const activeCard = document.getElementById('activeCard');
+
+function tick() {
+  const remain = new Date(deadline) - new Date();
+  if (remain <= 0) {
+    clearInterval(intervalId);
+    document.getElementById('countdown').textContent = "0:00";
+    fetch(`/api/checkin/${timerId}/missed`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        showToast('Check-in missed - alerting your emergency contacts.', 'danger');
+        resetToIdle();
+      });
+    return;
+  }
+  const mins = Math.floor(remain / 60000);
+  const secs = Math.floor((remain % 60000) / 1000);
+  document.getElementById('countdown').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+}
+
+function resetToIdle() {
+  clearInterval(intervalId);
+  activeCard.classList.add('d-none');
+  idleCard.classList.remove('d-none');
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  const label = document.getElementById('labelInput').value || 'Check-in';
+  const minutes = parseInt(document.getElementById('minutesSelect').value, 10);
+  fetch('/api/checkin/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label, minutes }),
+  }).then(r => r.json()).then(data => {
+    timerId = data.id; deadline = data.deadline;
+    document.getElementById('activeLabel').textContent = label;
+    idleCard.classList.add('d-none');
+    activeCard.classList.remove('d-none');
+    intervalId = setInterval(tick, 1000);
+    tick();
+    showToast('Timer started - stay safe out there.', 'success');
+  });
+});
+
+document.getElementById('checkinBtn').addEventListener('click', () => {
+  fetch(`/api/checkin/${timerId}/checkin`, { method: 'POST' })
+    .then(() => { showToast("Checked in - glad you're safe!", 'success'); resetToIdle(); });
+});
+
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  clearInterval(intervalId);
+  resetToIdle();
+  showToast('Timer cancelled.', 'info');
+});
+
+{% if active %}
+timerId = {{ active['id'] }};
+deadline = "{{ active['deadline'] }}";
+document.getElementById('activeLabel').textContent = "{{ active['label'] }}";
+idleCard.classList.add('d-none');
+activeCard.classList.remove('d-none');
+intervalId = setInterval(tick, 1000);
+tick();
+{% endif %}
+</script>
+{% endblock %}

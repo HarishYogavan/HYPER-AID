@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HyperAid - Watch</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+  body{ display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+  .watch-shell{ width:220px; height:220px; border-radius:36px; background:var(--surface-solid); border:3px solid var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:16px; text-align:center; }
+  .watch-sos{ width:120px; height:120px; border-radius:50%; background:var(--color-accent); color:#fff; border:none; font-size:1.1rem; font-weight:800; position:relative; }
+  .watch-status{ font-size:.7rem; color:var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="watch-shell">
+    <div class="watch-status" id="statusText">HyperAid</div>
+    <button class="watch-sos" onclick="fireSOS()"><span class="sos-ring"></span>SOS</button>
+    <div class="watch-status" id="resultText"></div>
+  </div>
+<script>
+function fireSOS() {
+  document.getElementById('resultText').textContent = 'Sending...';
+  const send = (lat, lng) => {
+    fetch('/api/sos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng }),
+    }).then(r => r.json()).then(data => {
+      document.getElementById('resultText').textContent = 'Sent ✓';
+    }).catch(() => { document.getElementById('resultText').textContent = 'Failed - call 112'; });
+  };
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => send(p.coords.latitude, p.coords.longitude), () => send(null, null), { timeout: 4000 });
+  } else { send(null, null); }
+}
+</script>
+</body>
+</html>

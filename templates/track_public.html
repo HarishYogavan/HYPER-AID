@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Tracking {{ share['full_name'] }} - HyperAid{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Live tracking</span>
+    <h1 class="section-title">{{ share['full_name'] }}'s location</h1>
+    <p class="section-sub mt-2" id="statusLine">
+      <span id="statusBadge" class="pill pill-low">Connecting...</span>
+      <span id="labelText" class="ms-2 text-muted-custom">{{ share['label'] }}</span>
+    </p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-9">
+        <div id="map" class="map-frame"></div>
+      </div>
+      <div class="col-lg-3">
+        <div class="glass-card p-4">
+          <h6 class="mb-2">Details</h6>
+          <p class="small mb-1"><i class="fa-solid fa-clock text-accent me-2"></i>Last update: <span id="lastSeen">--</span></p>
+          <p class="small mb-1"><i class="fa-solid fa-hourglass-end text-accent me-2"></i>Link expires: <span class="mono">{{ share['expires_at'][:16].replace('T',' ') }}</span></p>
+          <p class="small mb-0"><i class="fa-solid fa-route text-accent me-2"></i>Points recorded: <span id="pointCount">0</span></p>
+        </div>
+        <div class="glass-card p-4 mt-3">
+          <p class="small text-muted-custom mb-0">This page updates automatically every few seconds. If sharing has stopped or the link has expired, the map will freeze on the last known position.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const token = "{{ share['share_token'] }}";
+let map = L.map('map').setView([11.0168, 76.9558], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+let marker = null, trailLine = L.polyline([], { color: '#0B3D91', weight: 4 }).addTo(map);
+let pollTimer = null;
+
+function refresh() {
+  fetch(`/api/track/${token}/latest`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { document.getElementById('statusBadge').textContent = 'Invalid link'; return; }
+
+      const badge = document.getElementById('statusBadge');
+      if (data.active) {
+        badge.textContent = 'Live'; badge.className = 'pill pill-low';
+      } else if (data.expired) {
+        badge.textContent = 'Expired'; badge.className = 'pill pill-high'; clearInterval(pollTimer);
+      } else {
+        badge.textContent = 'Stopped'; badge.className = 'pill pill-medium'; clearInterval(pollTimer);
+      }
+
+      document.getElementById('pointCount').textContent = data.trail.length;
+
+      if (data.trail.length) {
+        const coords = data.trail.map(p => [p.lat, p.lng]);
+        trailLine.setLatLngs(coords);
+        const last = data.latest;
+        if (!marker) {
+          marker = L.marker([last.lat, last.lng]).addTo(map);
+        } else {
+          marker.setLatLng([last.lat, last.lng]);
+        }
+        map.setView([last.lat, last.lng], map.getZoom() < 14 ? 15 : map.getZoom());
+        document.getElementById('lastSeen').textContent = new Date(last.recorded_at + 'Z').toLocaleTimeString();
+      }
+    })
+    .catch(() => {});
+}
+
+refresh();
+pollTimer = setInterval(refresh, 5000);
+</script>
+{% endblock %}

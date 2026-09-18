@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ req['title'] }} - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container text-center">
+    <span class="section-eyebrow">Support request</span>
+    <h1 class="section-title">{{ req['title'] }}</h1>
+    <p class="section-sub mx-auto mt-2">Shared by {{ owner['full_name'] if owner else 'a HyperAid user' }}</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:640px">
+    <div class="glass-card p-4">
+      {% if req['description'] %}<p>{{ req['description'] }}</p>{% endif %}
+      {% if linked_report %}
+      <div class="alert alert-warning glass-card small">
+        <i class="fa-solid fa-circle-info me-2"></i>Related to a {{ linked_report['report_type'] }} report from {{ linked_report['created_at'] }}
+        {% if linked_report['severity'] %} (severity: {{ linked_report['severity'] }}){% endif %}.
+      </div>
+      {% endif %}
+      {% if req['external_link'] %}
+      <a href="{{ req['external_link'] }}" target="_blank" class="btn btn-emergency w-100 mt-2"><i class="fa-solid fa-hand-holding-heart me-2"></i>Go to fundraiser / donation link</a>
+      {% else %}
+      <p class="small text-muted-custom mb-0">No donation link was added - you can still reach out directly to offer help.</p>
+      {% endif %}
+    </div>
+    <p class="small text-muted-custom text-center mt-3">HyperAid does not process payments or verify fundraisers - please use your own judgement before sending money.</p>
+  </div>
+</section>
+{% endblock %}

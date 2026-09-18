@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Kit Inventory - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Be prepared</span>
+    <h1 class="section-title">Emergency Kit Inventory</h1>
+    <p class="section-sub mt-2">Track what's in your first-aid kit or go-bag, and catch expired items before you need them.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card p-4">
+          <h6 class="mb-3"><i class="fa-solid fa-kit-medical text-accent me-2"></i>Add an item</h6>
+          <form method="post" action="{{ url_for('api_add_kit_item') }}">
+            <div class="mb-3">
+              <label class="form-label small">Item name</label>
+              <input class="form-control" name="item_name" placeholder="e.g. Adhesive bandages" required>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-3">
+                <label class="form-label small">Quantity</label>
+                <input class="form-control" type="number" min="1" name="quantity" value="1">
+              </div>
+              <div class="col-6 mb-3">
+                <label class="form-label small">Expiry date</label>
+                <input class="form-control" type="date" name="expiry_date">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Notes</label>
+              <input class="form-control" name="notes">
+            </div>
+            <button class="btn btn-primary-solid w-100" type="submit">Add to kit</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        {% if not rows %}
+        <div class="glass-card p-4 text-center text-muted-custom">Your kit is empty - add your first item.</div>
+        {% endif %}
+        {% for item in rows %}
+        {% set expired = item['expiry_date'] and item['expiry_date'] < today %}
+        {% set expiring_soon = item['expiry_date'] and item['expiry_date'] >= today and item['expiry_date'] <= soon %}
+        <div class="glass-card p-3 mb-3 d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">{{ item['item_name'] }} <span class="badge bg-secondary ms-1">x{{ item['quantity'] }}</span>
+              {% if expired %}<span class="pill pill-high ms-1">Expired</span>{% elif expiring_soon %}<span class="pill pill-medium ms-1">Expiring soon</span>{% endif %}
+            </div>
+            <div class="small text-muted-custom">
+              {% if item['expiry_date'] %}Expires {{ item['expiry_date'] }}{% else %}No expiry set{% endif %}
+              {% if item['notes'] %} &middot; {{ item['notes'] }}{% endif %}
+            </div>
+          </div>
+          <form method="post" action="{{ url_for('api_delete_kit_item', item_id=item['id']) }}">
+            <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

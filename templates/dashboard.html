@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Emergency Dashboard - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+      <div>
+        <span class="section-eyebrow">Live view</span>
+        <h1 class="section-title">Emergency Dashboard</h1>
+        <p class="section-sub mt-2 mb-0" id="locationLabel"><i class="fa-solid fa-location-dot text-accent me-1"></i>Location not shared yet</p>
+      </div>
+      <button id="locateBtn" class="btn btn-emergency"><i class="fa-solid fa-location-crosshairs me-2"></i>Share my location</button>
+    </div>
+    <div id="weatherBanner" class="mt-3"></div>
+  </div>
+</section>
+
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-3 mb-4" id="tileRow">
+      {% for cat, icon, label in [("hospitals","fa-hospital","Hospitals"),("ambulances","fa-truck-medical","Ambulances"),
+                                    ("police","fa-building-shield","Police"),("fire","fa-fire-flame-curved","Fire Stations"),
+                                    ("pharmacies","fa-prescription-bottle-medical","Pharmacies"),("bloodbanks","fa-droplet","Blood Banks"),("vets","fa-paw","Vet Clinics")] %}
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="glass-card dash-tile text-center" data-cat="{{ cat }}">
+          <div class="feature-icon mx-auto {{ 'accent' if loop.index is even else '' }}" style="width:44px;height:44px;font-size:1.1rem"><i class="fa-solid {{ icon }}"></i></div>
+          <div class="count mt-2">--</div>
+          <div class="small text-muted-custom">{{ label }} nearby</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="glass-card p-3">
+          <ul class="nav nav-pills mb-3" id="catTabs">
+            {% for cat, label in [("hospitals","Hospitals"),("ambulances","Ambulances"),("police","Police"),
+                                    ("fire","Fire"),("pharmacies","Pharmacies"),("bloodbanks","Blood Banks"),("vets","Vets")] %}
+            <li class="nav-item">
+              <button class="nav-link {{ 'active' if loop.first }}" data-cat="{{ cat }}">{{ label }}</button>
+            </li>
+            {% endfor %}
+          </ul>
+          <div id="resultsList">
+            <p class="text-muted-custom text-center py-4">Share your location to see nearby services and ETAs.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="glass-card p-4 mb-3">
+          <h6><i class="fa-solid fa-phone-volume text-accent me-2"></i>Emergency contacts</h6>
+          {% if logged_in_user %}
+            <a href="{{ url_for('contacts_page') }}" class="btn btn-sm btn-outline-primary mt-2">Manage contacts</a>
+          {% else %}
+            <p class="small text-muted-custom mt-2 mb-2">Log in to save contacts so SOS can alert them automatically.</p>
+            <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-primary">Log in</a>
+          {% endif %}
+        </div>
+        <div class="glass-card p-4 mb-3">
+          <h6><i class="fa-solid fa-map-location-dot text-accent me-2"></i>Live map</h6>
+          <p class="small text-muted-custom">See everything plotted on a map with directions.</p>
+          <a href="{{ url_for('live_map') if logged_in_user else url_for('login') }}" class="btn btn-sm btn-primary-solid">Open live map</a>
+        </div>
+        <div class="glass-card p-4">
+          <h6><i class="fa-solid fa-location-crosshairs text-accent me-2"></i>Location tracker</h6>
+          <p class="small text-muted-custom">Share your live position with a trusted contact - no login needed on their end.</p>
+          {% if logged_in_user %}
+          <a href="{{ url_for('location_tracker_page') }}" class="btn btn-sm btn-emergency">Start sharing</a>
+          {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-primary">Log in to share</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let userLat = null, userLng = null;
+let activeCat = 'hospitals';
+
+function pillClass(sev) {
+  return sev === 'available' ? 'pill-low' : 'pill-medium';
+}
+
+function renderResults(results) {
+  const list = document.getElementById('resultsList');
+  if (!results.length) { list.innerHTML = '<p class="text-muted-custom text-center py-4">No services found.</p>'; return; }
+  list.innerHTML = results.map(r => `
+    <div class="result-row">
+      <div>
+        <div class="fw-semibold">${r.name}</div>
+        <div class="small text-muted-custom">${r.address || ''}</div>
+      </div>
+      <div class="text-end">
+        <div class="mono small">${r.distance_km ?? '--'} km &middot; ETA ${r.eta_min ?? '--'} min</div>
+        <a href="tel:${r.phone}" class="btn btn-sm btn-outline-primary mt-1"><i class="fa-solid fa-phone me-1"></i>Call</a>
+      </div>
+    </div>`).join('');
+}
+
+function loadCategory(cat) {
+  activeCat = cat;
+  if (userLat === null) return;
+  fetch(`/api/nearby?category=${cat}&lat=${userLat}&lng=${userLng}&limit=8`)
+    .then(r => r.json())
+    .then(data => renderResults(data.results));
+}
+
+function loadAllTiles() {
+  fetch(`/api/nearby/all?lat=${userLat}&lng=${userLng}`)
+    .then(r => r.json())
+    .then(data => {
+      document.querySelectorAll('#tileRow .dash-tile').forEach(tile => {
+        const cat = tile.dataset.cat;
+        const arr = data[cat] || [];
+        tile.querySelector('.count').textContent = arr.length;
+      });
+      loadCategory(activeCat);
+    });
+}
+
+function loadWeather() {
+  fetch(`/api/weather?lat=${userLat}&lng=${userLng}`)
+    .then(r => r.json())
+    .then(data => {
+      const banner = document.getElementById('weatherBanner');
+      if (data.error || !data.alerts || !data.alerts.length) { banner.innerHTML = ''; return; }
+      banner.innerHTML = data.alerts.map(a => `
+        <div class="alert glass-card ${a.level === 'High' ? 'alert-danger' : 'alert-warning'} small mb-2">
+          <i class="fa-solid fa-cloud-bolt me-2"></i>${a.message}
+        </div>`).join('');
+    })
+    .catch(() => {});
+}
+
+document.getElementById('locateBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { showToast('Geolocation not supported.', 'warning'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    document.getElementById('locationLabel').innerHTML =
+      `<i class="fa-solid fa-location-dot text-accent me-1"></i>Sharing location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+    loadAllTiles();
+    loadWeather();
+    showToast('Location shared - showing nearby services.', 'success');
+  }, () => showToast('Could not access your location.', 'danger'));
+});
+
+document.querySelectorAll('#catTabs .nav-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#catTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadCategory(btn.dataset.cat);
+  });
+});
+</script>
+{% endblock %}

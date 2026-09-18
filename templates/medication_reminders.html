@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Medication Reminders - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Stay on schedule</span>
+    <h1 class="section-title">Medication Reminders</h1>
+    <p class="section-sub mt-2">Set daily reminder times for your medications. While this tab is open in your browser, you'll get a notification at each scheduled time.</p>
+    <div class="alert alert-warning glass-card mt-3 small"><i class="fa-solid fa-triangle-exclamation me-2"></i>Browser notifications only fire while this tab (or your browser) is open - this isn't a substitute for a pharmacy alarm or a dedicated medication app for critical dosing.</div>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card p-4">
+          <h6 class="mb-3"><i class="fa-solid fa-pills text-accent me-2"></i>Add a reminder</h6>
+          <button id="notifPermBtn" class="btn btn-sm btn-outline-primary w-100 mb-2"><i class="fa-solid fa-bell me-1"></i>Enable browser notifications</button>
+          <button type="button" id="scanBtn" class="btn btn-sm btn-outline-primary w-100 mb-3"><i class="fa-solid fa-barcode me-1"></i>Scan medication barcode</button>
+          <div id="scannerBox" class="d-none mb-3"><div id="reader" style="width:100%"></div></div>
+          <p class="small text-muted-custom d-none" id="scanHint">Scanned code below - this reads the barcode's raw text, it doesn't look up a real drug name, so please confirm/edit it.</p>
+          <form method="post" action="{{ url_for('api_add_medication_reminder') }}" id="medForm">
+            <div class="mb-3">
+              <label class="form-label small">Medication name</label>
+              <input class="form-control" name="medication_name" id="medNameInput" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Time</label>
+              <input class="form-control" type="time" name="reminder_time" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Notes</label>
+              <input class="form-control" name="notes" placeholder="e.g. Take with food">
+            </div>
+            <button class="btn btn-primary-solid w-100" type="submit">Add reminder</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        {% if not rows %}
+        <div class="glass-card p-4 text-center text-muted-custom">No reminders set yet.</div>
+        {% endif %}
+        {% for r in rows %}
+        <div class="glass-card p-3 mb-3 d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold mono">{{ r['reminder_time'] }} <span class="fw-normal">- {{ r['medication_name'] }}</span></div>
+            {% if r['notes'] %}<div class="small text-muted-custom">{{ r['notes'] }}</div>{% endif %}
+          </div>
+          <form method="post" action="{{ url_for('api_delete_medication_reminder', reminder_id=r['id']) }}">
+            <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+document.getElementById('notifPermBtn').addEventListener('click', () => {
+  if (!('Notification' in window)) { showToast('Notifications not supported in this browser.', 'warning'); return; }
+  Notification.requestPermission().then(perm => {
+    showToast(perm === 'granted' ? 'Notifications enabled.' : 'Permission not granted.', perm === 'granted' ? 'success' : 'warning');
+  });
+});
+
+/* ---------- Barcode/QR scanner for medication packaging ----------
+   This reads the raw text/number encoded in the barcode - it is NOT a real
+   drug database lookup (no such free API is wired in here), so the scanned
+   value is dropped into the name field for the person to confirm or edit. */
+let html5QrCode = null;
+document.getElementById('scanBtn').addEventListener('click', () => {
+  const box = document.getElementById('scannerBox');
+  const hint = document.getElementById('scanHint');
+  if (box.classList.contains('d-none')) {
+    box.classList.remove('d-none');
+    hint.classList.remove('d-none');
+    html5QrCode = new Html5Qrcode('reader');
+    html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 200 },
+      decodedText => {
+        document.getElementById('medNameInput').value = decodedText;
+        showToast('Scanned - please confirm the medication name.', 'success');
+        html5QrCode.stop().then(() => box.classList.add('d-none'));
+      },
+      () => {}
+    ).catch(() => {
+      showToast('Could not access the camera for scanning.', 'danger');
+      box.classList.add('d-none');
+    });
+  } else {
+    if (html5QrCode) html5QrCode.stop().catch(() => {});
+    box.classList.add('d-none');
+  }
+});
+
+const firedToday = new Set();
+function checkReminders() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  fetch('/api/medication-reminders/active')
+    .then(r => r.json())
+    .then(reminders => {
+      const now = new Date();
+      const hhmm = now.toTimeString().slice(0, 5);
+      const dateKey = now.toDateString();
+      reminders.forEach(r => {
+        const key = `${dateKey}_${r.id}`;
+        if (r.reminder_time === hhmm && !firedToday.has(key)) {
+          firedToday.add(key);
+          new Notification('Medication reminder', { body: `Time to take: ${r.medication_name}${r.notes ? ' - ' + r.notes : ''}` });
+        }
+      });
+    });
+}
+setInterval(checkReminders, 30000);
+checkReminders();
+</script>
+{% endblock %}

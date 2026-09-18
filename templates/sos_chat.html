@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}SOS Coordination Room - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Active SOS</span>
+    <h1 class="section-title">Coordination Room</h1>
+    <p class="section-sub mt-2">A shared space for everyone responding to this SOS to stay on the same page. Anyone with this link can post here.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:640px">
+    <div class="glass-card chat-shell" style="height:60vh">
+      <div class="chat-window" id="chatWindow"></div>
+      <div class="chat-input-bar">
+        <div class="mb-2">
+          <input type="text" id="nameInput" class="form-control form-control-sm" placeholder="Your name (shown to others)">
+        </div>
+        <div class="d-flex gap-2">
+          <input type="text" id="msgInput" class="form-control" placeholder="Type a message...">
+          <button id="sendBtn" class="btn btn-primary-solid"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const token = "{{ room_token }}";
+let lastCount = 0;
+
+function render(messages) {
+  const win = document.getElementById('chatWindow');
+  win.innerHTML = messages.map(m => `
+    <div class="msg msg-bot">
+      <div class="fw-semibold small">${m.sender_name}</div>
+      <div>${m.message}</div>
+      <div class="small opacity-75" style="font-size:.68rem">${new Date(m.created_at + 'Z').toLocaleTimeString()}</div>
+    </div>`).join('');
+  win.scrollTop = win.scrollHeight;
+}
+
+function poll() {
+  fetch(`/api/sos-chat/${token}/messages`)
+    .then(r => r.json())
+    .then(data => { if (Array.isArray(data)) { lastCount = data.length; render(data); } });
+}
+
+document.getElementById('sendBtn').addEventListener('click', () => {
+  const msgInput = document.getElementById('msgInput');
+  const nameInput = document.getElementById('nameInput');
+  if (!msgInput.value.trim()) return;
+  fetch(`/api/sos-chat/${token}/messages`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sender_name: nameInput.value || 'Anonymous', message: msgInput.value }),
+  }).then(() => { msgInput.value = ''; poll(); });
+});
+document.getElementById('msgInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('sendBtn').click();
+});
+
+poll();
+setInterval(poll, 3000);
+</script>
+{% endblock %}

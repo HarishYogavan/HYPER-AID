@@ -31,15 +31,25 @@ from utils import (
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    UPLOAD_FOLDER = "/tmp/uploads"
+else:
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 ALLOWED_EXT = {"png", "jpg", "jpeg", "webp"}
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024  # 6 MB upload cap
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except Exception:
+    pass
 
 # Google Maps API key - add your own key as an environment variable.
 # The map page works in a graceful "offline" demo mode without one.
@@ -138,6 +148,11 @@ PUBLIC_ENDPOINTS = {
     "emergency_card", "fridge_magnet", "pet_card", "dependent_card",
     "track_public", "support_public",
     "sos_chat_page", "api_sos_chat_get", "api_sos_chat_post", "api_track_latest",
+    "index", "about", "services", "faq", "blog", "disaster_guides",
+    "chatbot_page", "api_chatbot", "api_chatbot_reset",
+    "symptom_checker_page", "api_symptom_node",
+    "service_category", "accident_page", "api_accident_analyze",
+    "api_nearby", "api_nearby_all",
 }
 
 

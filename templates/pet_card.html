@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ pet['name'] }}'s Emergency Card - HyperAid{% endblock %}
+{% block extra_head %}
+<style>
+@media print {
+  .app-navbar, .app-footer, .sos-fab, #scrollTopBtn, .no-print { display: none !important; }
+  body { background: #fff !important; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container text-center">
+    <span class="section-eyebrow">Pet Emergency Card</span>
+    <h1 class="section-title">{{ pet['name'] }}</h1>
+    <p class="section-sub mx-auto mt-2">For vets, pet-sitters, or anyone who finds {{ pet['name'] }}.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:640px">
+    <div class="glass-card p-4">
+      <div class="row g-4 align-items-center">
+        <div class="col-md-8">
+          <table class="table table-borderless mb-0">
+            <tr><td class="text-muted-custom small" style="width:40%">Species / Breed</td><td class="fw-semibold">{{ pet['species'] or '-' }} {% if pet['breed'] %} - {{ pet['breed'] }}{% endif %}</td></tr>
+            <tr><td class="text-muted-custom small">Weight</td><td>{{ pet['weight_kg'] ~ ' kg' if pet['weight_kg'] else 'Not recorded' }}</td></tr>
+            <tr><td class="text-muted-custom small">Microchip #</td><td>{{ pet['microchip_number'] or 'Not recorded' }}</td></tr>
+            <tr><td class="text-muted-custom small">Allergies</td><td>{{ pet['allergies'] or 'None recorded' }}</td></tr>
+            <tr><td class="text-muted-custom small">Medications</td><td>{{ pet['medications'] or 'None recorded' }}</td></tr>
+            <tr><td class="text-muted-custom small">Owner</td><td>{{ owner['full_name'] if owner else 'Unknown' }} {% if owner and owner['phone'] %} - {{ owner['phone'] }}{% endif %}</td></tr>
+          </table>
+        </div>
+        <div class="col-md-4 text-center">
+          <div id="qrcode" class="d-inline-block p-2 bg-white rounded"></div>
+          <p class="small text-muted-custom mt-2 mb-0">Scan for this card</p>
+        </div>
+      </div>
+      {% if pet['notes'] %}<hr><p class="small mb-0"><i class="fa-solid fa-note-sticky text-accent me-2"></i>{{ pet['notes'] }}</p>{% endif %}
+      {% if vaccinations %}
+      <hr>
+      <h6 class="mb-2">Vaccinations</h6>
+      {% for v in vaccinations %}
+      <p class="small mb-1">{{ v['vaccine_name'] }} <span class="text-muted-custom">({{ v['date_administered'] or 'date unknown' }})</span></p>
+      {% endfor %}
+      {% endif %}
+      <button class="btn btn-outline-primary w-100 mt-3 no-print" onclick="window.print()"><i class="fa-solid fa-print me-2"></i>Print this card</button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 140, height: 140 });
+</script>
+{% endblock %}

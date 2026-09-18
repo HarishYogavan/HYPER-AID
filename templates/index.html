@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}HyperAid - AI-Powered Emergency Response Assistant{% endblock %}
+
+{% block content %}
+<!-- HERO -->
+<section class="hero pb-0">
+  <div class="container">
+    <div class="row align-items-center gy-5">
+      <div class="col-lg-6">
+        <span class="hero-eyebrow"><i class="fa-solid fa-circle-dot"></i> Live emergency network</span>
+        <h1>Every second counts. <span class="text-accent">HyperAid</span> counts every second.</h1>
+        <p class="lead">One assistant that finds the nearest hospital, ambulance, police or fire station, walks you through first aid, and alerts your emergency contacts the instant you need it.</p>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a href="{{ url_for('dashboard') }}" class="btn btn-emergency"><i class="fa-solid fa-location-crosshairs me-2"></i>Open Emergency Dashboard</a>
+          <a href="{{ url_for('chatbot_page') }}" class="btn btn-ghost"><i class="fa-solid fa-comment-medical me-2"></i>Talk to HYPER AI</a>
+        </div>
+        <div class="row hero-stat-strip">
+          <div class="col-4">
+            <div class="stat-number">{{ stats.hospitals }}+</div>
+            <div class="stat-label">Hospitals mapped</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-number">{{ stats.ambulances }}+</div>
+            <div class="stat-label">Ambulances tracked</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-number">2.4<span style="font-size:1.1rem">min</span></div>
+            <div class="stat-label">Avg. response lookup</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6 text-center">
+        <div class="hero-beacon">
+          <i class="fa-solid fa-heart-pulse"></i>
+        </div>
+        <p class="text-muted-custom mt-4 mb-0"><i class="fa-solid fa-shield-heart text-accent me-1"></i>Tap the SOS button any time - top right, or the floating button.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HYPER AI Assistant intro -->
+<section>
+  <div class="container">
+    <div class="row align-items-center gy-4">
+      <div class="col-lg-5">
+        <span class="section-eyebrow">Meet HYPER AI</span>
+        <h2 class="section-title">One assistant for emergencies and everyday first aid.</h2>
+        <p class="section-sub mt-3">Describe what's happening in plain language, by typing or speaking - from a cardiac emergency to a simple headache or upset stomach - and get calm, actionable guidance and home-remedy tips, available in multiple languages, day or night.</p>
+        <a href="{{ url_for('chatbot_page') }}" class="btn btn-outline-primary mt-2">Try HYPER AI <i class="fa-solid fa-arrow-right ms-1"></i></a>
+      </div>
+      <div class="col-lg-7">
+        <div class="glass-card p-4">
+          <div class="chat-window" style="height:280px">
+            <div class="msg msg-user">My neighbour just collapsed and isn't responding!</div>
+            <div class="msg msg-bot">Call 108 immediately and put me on speaker. Check if they're breathing - if not, start CPR: 30 chest compressions, then 2 rescue breaths. I'll stay with you.</div>
+            <div class="msg msg-user">I just have a bad headache, any home remedy?</div>
+            <div class="msg msg-bot">Rest in a dim, quiet room, drink water (dehydration is a common trigger), and a cold compress on your forehead can help. Over-the-counter pain relief works for most tension headaches...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature highlights -->
+<section class="bg-alt">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-eyebrow">What's inside</span>
+      <h2 class="section-title">Everything a real emergency needs</h2>
+      <p class="section-sub mx-auto mt-2">Built around the six minutes that matter most: find help, understand the situation, act, and alert the right people.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-hospital"></i></div>
+          <h5>Service Finders</h5>
+          <p class="text-muted-custom mb-0">Hospitals, ambulances, police, fire, pharmacies and blood banks - ranked by real distance and ETA.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon accent"><i class="fa-solid fa-camera"></i></div>
+          <h5>Accident Detection</h5>
+          <p class="text-muted-custom mb-0">Upload a photo of a road accident for an instant severity read and recommended next steps.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-comments"></i></div>
+          <h5>Voice-first Assistant</h5>
+          <p class="text-muted-custom mb-0">Speak naturally and hear the response back - hands-free guidance when you need both hands free.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon accent"><i class="fa-solid fa-tower-broadcast"></i></div>
+          <h5>One-tap SOS</h5>
+          <p class="text-muted-custom mb-0">A single button shares your live location and alerts every saved emergency contact at once.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+          <h5>Live Map</h5>
+          <p class="text-muted-custom mb-0">See your position against every nearby emergency service with turn-by-turn directions.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon accent"><i class="fa-solid fa-chart-line"></i></div>
+          <h5>Admin Analytics</h5>
+          <p class="text-muted-custom mb-0">City responders get a live dashboard of reports, severity trends and service coverage.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section>
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-eyebrow">Trusted in the moment</span>
+      <h2 class="section-title">Stories from people who needed us fast</h2>
+    </div>
+    <div class="row g-4">
+      {% for t in testimonials %}
+      <div class="col-md-4">
+        <div class="glass-card testimonial-card">
+          <div class="testimonial-stars mb-2">
+            {% for i in range(t['rating']) %}<i class="fa-solid fa-star"></i>{% endfor %}
+          </div>
+          <p class="mb-3">"{{ t['message'] }}"</p>
+          <div class="fw-semibold">{{ t['name'] }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="bg-alt">
+  <div class="container text-center">
+    <h2 class="section-title">Set up your safety net before you need it</h2>
+    <p class="section-sub mx-auto mt-2 mb-4">Create a free account, add your emergency contacts, and HyperAid is ready the moment something goes wrong.</p>
+    <a href="{{ url_for('register') }}" class="btn btn-emergency"><i class="fa-solid fa-user-plus me-2"></i>Create your free account</a>
+  </div>
+</section>
+{% endblock %}

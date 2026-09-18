@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Emergency Contacts - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Your safety net</span>
+    <h1 class="section-title">Emergency Contacts</h1>
+    <p class="section-sub mt-2">These people are notified automatically (simulated SMS + email) whenever you trigger the SOS button.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card p-4">
+          <h6 class="mb-3"><i class="fa-solid fa-user-plus text-accent me-2"></i>Add a contact</h6>
+          <button type="button" id="importContactBtn" class="btn btn-sm btn-outline-primary w-100 mb-3"><i class="fa-solid fa-address-card me-1"></i>Import from phone contacts</button>
+          <form method="post" action="{{ url_for('api_add_contact') }}" id="addContactForm">
+            <div class="mb-3">
+              <label class="form-label small">Full name</label>
+              <input class="form-control" name="name" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Phone number</label>
+              <input class="form-control" name="phone" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Relationship</label>
+              <input class="form-control" name="relationship" placeholder="e.g. Spouse, Parent, Friend">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Alert priority</label>
+              <select class="form-select" name="priority">
+                <option value="1">1 - Notify first</option>
+                <option value="2">2</option>
+                <option value="3">3 - Notify last</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Email (optional)</label>
+              <input class="form-control" type="email" name="email">
+            </div>
+            <button class="btn btn-primary-solid w-100" type="submit"><i class="fa-solid fa-floppy-disk me-2"></i>Save contact</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        {% if not rows %}
+        <div class="glass-card p-4 text-center text-muted-custom">
+          <i class="fa-solid fa-address-book fa-2x mb-2"></i>
+          <p class="mb-0">No emergency contacts yet. Add your first one.</p>
+        </div>
+        {% endif %}
+        {% for c in rows %}
+        <div class="glass-card p-3 mb-3 d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">{{ c['name'] }} <span class="badge bg-secondary ms-1">{{ c['relationship'] or 'Contact' }}</span> <span class="badge bg-primary ms-1">Priority {{ c['priority'] }}</span></div>
+            <div class="small text-muted-custom"><i class="fa-solid fa-phone me-1"></i>{{ c['phone'] }} {% if c['email'] %} &middot; {{ c['email'] }}{% endif %}</div>
+          </div>
+          <form method="post" action="{{ url_for('api_delete_contact', contact_id=c['id']) }}" onsubmit="return confirm('Remove this contact?')">
+            <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('importContactBtn').addEventListener('click', async () => {
+  if (!('contacts' in navigator && 'ContactsManager' in window)) {
+    showToast('Contact import is only supported on some Android phones in Chrome - fill the form manually instead.', 'warning');
+    return;
+  }
+  try {
+    const props = ['name', 'tel'];
+    const contacts = await navigator.contacts.select(props, { multiple: false });
+    if (!contacts.length) return;
+    const c = contacts[0];
+    const form = document.getElementById('addContactForm');
+    if (c.name && c.name[0]) form.querySelector('[name="name"]').value = c.name[0];
+    if (c.tel && c.tel[0]) form.querySelector('[name="phone"]').value = c.tel[0];
+    showToast('Contact details filled in - review and save.', 'success');
+  } catch (err) {
+    showToast('Could not import contact.', 'danger');
+  }
+});
+</script>
+{% endblock %}

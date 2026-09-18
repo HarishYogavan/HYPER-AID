@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Contact - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container text-center">
+    <span class="section-eyebrow">Get in touch</span>
+    <h1 class="section-title">Questions, feedback, partnerships</h1>
+    <p class="section-sub mx-auto mt-2">Not for emergencies - for those, use the SOS button or call 112 directly.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="glass-card p-4">
+          <form method="post" novalidate id="contactForm">
+            <div class="mb-3">
+              <label class="form-label small">Full name</label>
+              <input class="form-control" name="name" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Email address</label>
+              <input class="form-control" type="email" name="email" id="emailField" required>
+              <div class="form-text text-danger d-none" id="emailError">Please enter a valid email address.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Message</label>
+              <textarea class="form-control" name="message" rows="5" required></textarea>
+            </div>
+            <button class="btn btn-emergency w-100" type="submit"><i class="fa-solid fa-paper-plane me-2"></i>Send message</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="glass-card p-0 overflow-hidden mb-3">
+          <iframe title="map" width="100%" height="260" style="border:0" loading="lazy"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=76.90%2C10.95%2C77.10%2C11.08&layer=mapnik&marker=11.0168%2C76.9558">
+          </iframe>
+        </div>
+        <div class="glass-card p-4">
+          <h6 class="mb-3">Reach us directly</h6>
+          <p class="small mb-2"><i class="fa-solid fa-envelope text-accent me-2"></i>support@hyperaid.example</p>
+          <p class="small mb-3"><i class="fa-solid fa-location-dot text-accent me-2"></i>Coimbatore, Tamil Nadu, India</p>
+          <div class="social-links">
+            <a href="#"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#"><i class="fa-brands fa-twitter"></i></a>
+            <a href="#"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#"><i class="fa-brands fa-linkedin-in"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('contactForm').addEventListener('submit', e => {
+  const emailField = document.getElementById('emailField');
+  const emailError = document.getElementById('emailError');
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(emailField.value)) {
+    e.preventDefault();
+    emailError.classList.remove('d-none');
+    emailField.classList.add('is-invalid');
+  } else {
+    emailError.classList.add('d-none');
+    emailField.classList.remove('is-invalid');
+  }
+});
+</script>
+{% endblock %}

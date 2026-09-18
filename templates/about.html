@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}About - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-0">
+  <div class="container">
+    <span class="section-eyebrow">About the project</span>
+    <h1 class="section-title" style="font-size:2.6rem">Built so no one has to search for help while help is needed.</h1>
+    <p class="section-sub mt-3" style="max-width:720px">HyperAid began as a simple observation: in an emergency, people lose minutes not to distance, but to indecision - which number to call, which hospital is closest, what to do until help arrives. We built one place that answers all three.</p>
+  </div>
+</section>
+
+<section class="pt-0">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="glass-card p-4 h-100">
+          <div class="feature-icon accent mb-3"><i class="fa-solid fa-bullseye"></i></div>
+          <h4>Our Mission</h4>
+          <p class="text-muted-custom mb-0">Cut the time between "something is wrong" and "the right help is on its way" to as close to zero as possible, using AI as a calm, always-available guide rather than a replacement for real responders.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="glass-card p-4 h-100">
+          <div class="feature-icon mb-3"><i class="fa-solid fa-eye"></i></div>
+          <h4>Our Vision</h4>
+          <p class="text-muted-custom mb-0">A world where every phone doubles as an emergency dispatcher: locating services, coordinating contacts, and giving trustworthy first-response guidance in the local language.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="bg-alt">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-eyebrow">Why it helps</span>
+      <h2 class="section-title">Benefits</h2>
+    </div>
+    <div class="row g-4">
+      {% set benefits = [
+        ("fa-stopwatch", "Faster decisions", "Ranked-by-distance results remove the guesswork of which service to call first."),
+        ("fa-language", "Speaks your language", "Multi-language chat and voice support meet people where they are, literally."),
+        ("fa-people-group", "Keeps your circle informed", "One SOS tap notifies every saved contact with your live location."),
+        ("fa-shield-halved", "Privacy-respecting", "Location and contact data stay tied to your account, never sold or shared."),
+        ("fa-signal", "Works with patchy data", "Lightweight pages and cached emergency numbers work even on slow connections."),
+        ("fa-chart-simple", "Improves over time", "Admins see real usage and report data to route resources where they're needed.")
+      ] %}
+      {% for icon, title, desc in benefits %}
+      <div class="col-md-4">
+        <div class="glass-card feature-card">
+          <div class="feature-icon"><i class="fa-solid {{ icon }}"></i></div>
+          <h5>{{ title }}</h5>
+          <p class="text-muted-custom mb-0">{{ desc }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-eyebrow">Under the hood</span>
+      <h2 class="section-title">Technology used</h2>
+    </div>
+    <div class="row g-3">
+      {% for name, icon in [("Python / Flask","fa-python"),("SQLite","fa-database"),("Bootstrap 5","fa-bootstrap"),
+                             ("JavaScript ES6","fa-js"),("Google Maps API","fa-map"),("Chart.js","fa-chart-column"),
+                             ("Web Speech API","fa-microphone"),("Font Awesome","fa-icons")] %}
+      <div class="col-6 col-md-3">
+        <div class="glass-card p-3 text-center h-100">
+          <i class="fa-brands {{ icon }} fa-2x mb-2 text-accent" onerror="this.className='fa-solid fa-gear'"></i>
+          <div class="fw-semibold small">{{ name }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

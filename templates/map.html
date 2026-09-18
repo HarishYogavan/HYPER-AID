@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+{% block title %}Live Map - HyperAid{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+<style>
+  .eta-banner{ position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:500;
+    background:var(--surface-solid); border:1px solid var(--border); border-radius:50px; padding:.5rem 1.2rem;
+    box-shadow:var(--shadow); font-weight:700; display:none; }
+  .map-frame{ position:relative }
+  .fav-chip, .recent-chip{ font-size:.75rem; padding:.25rem .7rem }
+  html.big-icon-mode .leaflet-popup-content{ font-size:1.05rem !important }
+  .leaflet-control-layers{ border-radius:12px !important; font-size:.85rem; font-family:var(--font-body); }
+  .leaflet-control-layers-toggle{ display:none !important }
+</style>
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Live Map</span>
+    <h1 class="section-title">Everything nearby, on one map</h1>
+    <p class="section-sub mt-2">
+      {% if gmaps_key %}
+        Powered by the Google Maps API.
+      {% else %}
+        Running in offline-demo mode with OpenStreetMap tiles (no Google Maps API key configured).
+        Add <code>GOOGLE_MAPS_API_KEY</code> to your environment to switch to Google Maps automatically.
+      {% endif %}
+    </p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-9">
+        <div id="map" class="map-frame">
+          <div class="eta-banner" id="etaBanner"></div>
+        </div>
+        <div class="glass-card p-3 mt-3 d-none" id="stepsCard">
+          <h6 class="mb-2"><i class="fa-solid fa-list-ol text-accent me-2"></i>Turn-by-turn directions</h6>
+          <ol class="small ps-3 mb-0" id="stepsList" style="max-height:220px;overflow-y:auto"></ol>
+        </div>
+      </div>
+      <div class="col-lg-3">
+        <div class="glass-card p-3 mb-3">
+          <button id="locateBtn" class="btn btn-emergency w-100"><i class="fa-solid fa-location-crosshairs me-2"></i>Locate me</button>
+        </div>
+
+        <div class="glass-card p-3 mb-3">
+          <h6 class="mb-2"><i class="fa-solid fa-bolt text-accent me-2"></i>Jump to nearest</h6>
+          <div class="d-flex flex-wrap gap-2" id="nearestBtns">
+            <button class="btn btn-sm btn-outline-primary" data-cat="hospitals">🏥 Hospital</button>
+            <button class="btn btn-sm btn-outline-primary" data-cat="ambulances">🚑 Ambulance</button>
+            <button class="btn btn-sm btn-outline-primary" data-cat="police">🚓 Police</button>
+            <button class="btn btn-sm btn-outline-primary" data-cat="pharmacies">💊 Pharmacy</button>
+            <button class="btn btn-sm btn-outline-primary" data-cat="bloodbanks">🩸 Blood Bank</button>
+          </div>
+        </div>
+
+        <div class="glass-card p-3 mb-3">
+          <h6 class="mb-2"><i class="fa-solid fa-diamond-turn-right text-accent me-2"></i>Get directions</h6>
+          <div class="input-group input-group-sm mb-2">
+            <input type="text" id="destSearch" class="form-control" placeholder="Search a destination...">
+            <button class="btn btn-outline-primary" id="destSearchBtn"><i class="fa-solid fa-magnifying-glass"></i></button>
+          </div>
+          <p class="small text-muted-custom mb-2">...or tap anywhere on the map to mark a destination.</p>
+
+          <div class="btn-group btn-group-sm w-100 mb-2" id="travelModeGroup" role="group">
+            <button type="button" class="btn btn-outline-primary active" data-mode="driving"><i class="fa-solid fa-car"></i></button>
+            <button type="button" class="btn btn-outline-primary" data-mode="foot"><i class="fa-solid fa-person-walking"></i></button>
+            <button type="button" class="btn btn-outline-primary" data-mode="bike"><i class="fa-solid fa-person-biking"></i></button>
+          </div>
+
+          <div id="routeInfo" class="small d-none mb-2"></div>
+          <button id="saveFavBtn" class="btn btn-sm btn-outline-primary w-100 d-none mb-2"><i class="fa-solid fa-star me-1"></i>Save as favorite</button>
+          <button id="clearRouteBtn" class="btn btn-sm btn-ghost w-100 d-none"><i class="fa-solid fa-xmark me-1"></i>Clear route</button>
+          <div id="rerouteBox" class="alert alert-warning glass-card small p-2 mt-2 d-none">
+            You've moved off the route. <button class="btn btn-sm btn-outline-primary w-100 mt-1" id="rerouteBtn">Recalculate</button>
+          </div>
+        </div>
+
+        {% if logged_in_user %}
+        <div class="glass-card p-3 mb-3">
+          <h6 class="mb-2"><i class="fa-solid fa-star text-accent me-2"></i>Favorites</h6>
+          <div id="favList" class="d-flex flex-wrap gap-2">
+            <span class="small text-muted-custom">None saved yet.</span>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="glass-card p-3 mb-3">
+          <h6 class="mb-2"><i class="fa-solid fa-clock-rotate-left text-accent me-2"></i>Recently viewed</h6>
+          <div id="recentList" class="d-flex flex-wrap gap-2">
+            <span class="small text-muted-custom">Nothing yet.</span>
+          </div>
+        </div>
+
+        <div class="glass-card p-3 mb-3">
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="chk_ring">
+            <label class="form-check-label small" for="chk_ring">Show 2km radius ring</label>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="chk_cluster" checked>
+            <label class="form-check-label small" for="chk_cluster">Cluster markers</label>
+          </div>
+        </div>
+
+        <div class="glass-card p-3">
+          <h6 class="mb-2">Show on map</h6>
+          {% for cat, symbol, label in [("hospitals","🏥","Hospitals"),("ambulances","🚑","Ambulances"),("police","🚓","Police"),("fire","🚒","Fire"),("pharmacies","💊","Pharmacies"),("bloodbanks","🩸","Blood Banks"),("vets","🐾","Vet Clinics")] %}
+          <div class="form-check form-switch mb-2 d-flex align-items-center">
+            <input class="form-check-input layer-toggle" type="checkbox" data-cat="{{ cat }}" id="chk_{{ cat }}" checked>
+            <label class="form-check-label small ms-1" for="chk_{{ cat }}"><span style="font-size:1rem">{{ symbol }}</span> {{ label }}</label>
+          </div>
+          {% endfor %}
+          <div class="form-check form-switch mb-2 d-flex align-items-center">
+            <input class="form-check-input" type="checkbox" id="chk_community" checked>
+            <label class="form-check-label small ms-1" for="chk_community"><span style="font-size:1rem">⚠️</span> Community Alerts</label>
+          </div>
+          <hr>
+          <p class="small text-muted-custom mb-1">Legend</p>
+          <div class="d-flex flex-wrap gap-2 small text-muted-custom">
+            <span>🎯 Destination</span>
+            <span><svg width="12" height="16" viewBox="0 0 34 46"><path d="M17 0C7.6 0 0 7.6 0 17c0 12.7 17 29 17 29s17-16.3 17-29C34 7.6 26.4 0 17 0z" fill="#0B3D91"/></svg> You</span>
+          </div>
+          <p class="small text-muted-custom mb-1 mt-2">Hospital bed ring</p>
+          <div class="d-flex flex-wrap gap-2 small text-muted-custom">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2A9D5C"></span> Plenty</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F4A100"></span> Low</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#E63946"></span> Full</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script>
+const GMAPS_KEY = "{{ gmaps_key }}";
+const IS_LOGGED_IN = {{ 'true' if logged_in_user else 'false' }};
+const CATEGORY_ICONS = {
+  hospitals: '🏥', ambulances: '🚑', police: '🚓', fire: '🚒', pharmacies: '💊', bloodbanks: '🩸', vets: '🐾'
+};
+const COMMUNITY_ICONS = { accident: '🚗', fire: '🔥', flood: '🌊', road_block: '🚧', crime: '🚨', other: '⚠️' };
+let userLat = 11.0168, userLng = 76.9558; // Coimbatore default centre
+let leafletMap, clusterGroup, plainLayer, communityLayer;
+let youAreHereMarker = null, ringCircle = null;
+let travelMode = 'driving';
+
+function initLeaflet() {
+  leafletMap = L.map('map').setView([userLat, userLng], 13);
+
+  const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+  const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+  });
+  streetLayer.addTo(leafletMap);
+  L.control.layers({ 'Street': streetLayer, 'Satellite': satelliteLayer }, {}, { position: 'topright', collapsed: false }).addTo(leafletMap);
+
+  clusterGroup = L.markerClusterGroup();
+  plainLayer = L.layerGroup();
+  communityLayer = L.layerGroup().addTo(leafletMap);
+  leafletMap.addLayer(clusterGroup);
+
+  updateYouAreHere();
+  loadMarkers();
+  loadCommunityAlerts();
+  loadFavorites();
+  renderRecent();
+  leafletMap.on('click', e => setDestination(e.latlng.lat, e.latlng.lng, 'Marked location'));
+}
+
+function updateYouAreHere() {
+  // Classic teardrop pin (the familiar map-pin shape) instead of a flat dot,
+  // in the app's primary blue so it's still clearly "you" among the other
+  // emoji pins.
+  const pinSvg = `
+    <svg width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17 0C7.6 0 0 7.6 0 17c0 12.7 17 29 17 29s17-16.3 17-29C34 7.6 26.4 0 17 0z" fill="#0B3D91" stroke="#ffffff" stroke-width="2"/>
+      <circle cx="17" cy="17" r="7" fill="#ffffff"/>
+    </svg>`;
+  const icon = L.divIcon({ html: pinSvg, className: '', iconSize: [34, 46], iconAnchor: [17, 46], popupAnchor: [0, -40] });
+  if (youAreHereMarker) {
+    youAreHereMarker.setLatLng([userLat, userLng]);
+  } else {
+    youAreHereMarker = L.marker([userLat, userLng], { icon, zIndexOffset: 1000 }).addTo(leafletMap).bindPopup('You are here');
+  }
+  if (ringCircle) ringCircle.setLatLng([userLat, userLng]);
+}
+
+document.getElementById('chk_ring').addEventListener('change', e => {
+  if (e.target.checked) {
+    ringCircle = L.circle([userLat, userLng], { radius: 2000, color: '#E63946', weight: 1, fillOpacity: 0.05 }).addTo(leafletMap);
+  } else if (ringCircle) {
+    leafletMap.removeLayer(ringCircle); ringCircle = null;
+  }
+});
+
+document.getElementById('chk_cluster').addEventListener('change', () => {
+  loadMarkers(); // rebuild into the appropriate layer type
+});
+
+/* ---------- Nearby services (clustered or plain, per toggle) ---------- */
+let markersByCategory = {};
+let dataByCategory = {}; // raw data per category, sorted nearest-first (from rank_nearby)
+
+function bedColor(beds) {
+  if (beds === undefined || beds === null) return null;
+  if (beds <= 0) return '#E63946';   // red - full
+  if (beds <= 5) return '#F4A100';   // amber - low
+  return '#2A9D5C';                  // green - plenty
+}
+
+function loadMarkers() {
+  clusterGroup.clearLayers();
+  plainLayer.clearLayers();
+  if (document.getElementById('chk_cluster').checked) {
+    if (!leafletMap.hasLayer(clusterGroup)) leafletMap.addLayer(clusterGroup);
+    leafletMap.removeLayer(plainLayer);
+  } else {
+    if (!leafletMap.hasLayer(plainLayer)) leafletMap.addLayer(plainLayer);
+    leafletMap.removeLayer(clusterGroup);
+  }
+
+  fetch(`/api/nearby/all?lat=${userLat}&lng=${userLng}`)
+    .then(r => r.json())
+    .then(data => {
+      markersByCategory = {};
+      dataByCategory = data;
+      const activeLayer = document.getElementById('chk_cluster').checked ? clusterGroup : plainLayer;
+      Object.entries(data).forEach(([cat, arr]) => {
+        const enabled = document.getElementById('chk_' + cat)?.checked ?? true;
+        markersByCategory[cat] = arr.filter(x => x.latitude).map(x => {
+          // Hospitals get a colour ring reflecting bed availability so it's
+          // visible at a glance without opening the popup.
+          const ring = cat === 'hospitals' ? bedColor(x.beds_available) : null;
+          const ringStyle = ring ? `box-shadow:0 0 0 3px ${ring}; border-radius:50%; background:#fff;` : '';
+          const icon = L.divIcon({ html: `<div style="font-size:22px;${ringStyle}">${CATEGORY_ICONS[cat] || '📍'}</div>`, className: '' });
+          const displayName = x.name || x.vehicle_no || 'Unnamed';
+          const safeName = displayName.replace(/'/g, "");
+          const popupId = `eta-${cat}-${x.id ?? Math.round(x.latitude * 1e5)}-${Math.round(x.longitude * 1e5)}`;
+          const popupHtml = buildPopupHtml(cat, x, displayName, popupId);
+          const m = L.marker([x.latitude, x.longitude], { icon }).bindPopup(popupHtml);
+          m.on('popupopen', () => fetchPopupEta(popupId, x.latitude, x.longitude));
+          if (enabled) activeLayer.addLayer(m);
+          return m;
+        });
+      });
+    });
+}
+
+/* ---------- Jump to nearest of a category ---------- */
+document.querySelectorAll('#nearestBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const cat = btn.dataset.cat;
+    const list = dataByCategory[cat];
+    const markers = markersByCategory[cat];
+    if (!list || !list.length || !markers || !markers.length) {
+      showToast('No nearby ' + btn.textContent.trim().toLowerCase() + ' found.', 'warning');
+      return;
+    }
+    const nearest = list[0]; // rank_nearby returns results sorted closest-first
+    leafletMap.setView([nearest.latitude, nearest.longitude], 15);
+    markers[0].openPopup();
+  });
+});
+
+document.querySelectorAll('.layer-toggle').forEach(chk => {
+  chk.addEventListener('change', () => {
+    const cat = chk.dataset.cat;
+    const activeLayer = document.getElementById('chk_cluster').checked ? clusterGroup : plainLayer;
+    (markersByCategory[cat] || []).forEach(m => {
+      if (chk.checked) activeLayer.addLayer(m); else activeLayer.removeLayer(m);
+    });
+  });
+});
+
+/* ---------- Build a rich popup: name, address/phone, and category-specific extra info ---------- */
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function buildPopupHtml(cat, x, displayName, popupId) {
+  const rows = [];
+
+  if (cat === 'ambulances') {
+    if (x.driver_name) rows.push(`<i class="fa-solid fa-id-badge text-accent me-1"></i>Driver: ${esc(x.driver_name)}`);
+    if (x.vehicle_no) rows.push(`<i class="fa-solid fa-truck-medical text-accent me-1"></i>Vehicle: ${esc(x.vehicle_no)}`);
+    if (x.status) rows.push(`<i class="fa-solid fa-circle-info text-accent me-1"></i>Status: <span class="fw-bold ${x.status === 'available' ? 'text-success' : 'text-danger'}">${esc(x.status)}</span>`);
+  } else {
+    if (x.address) rows.push(`<i class="fa-solid fa-location-dot text-accent me-1"></i>${esc(x.address)}`);
+  }
+
+  if (cat === 'hospitals') {
+    if (x.beds_available !== undefined) rows.push(`<i class="fa-solid fa-bed text-accent me-1"></i>${esc(x.beds_available)} beds available`);
+    if (x.has_emergency_ward !== undefined) rows.push(`<i class="fa-solid fa-kit-medical text-accent me-1"></i>${x.has_emergency_ward ? 'Has 24/7 emergency ward' : 'No emergency ward'}`);
+  }
+  if (cat === 'pharmacies' && x.open_24_hours !== undefined) {
+    rows.push(`<i class="fa-solid fa-clock text-accent me-1"></i>${x.open_24_hours ? 'Open 24 hours' : 'Regular hours'}`);
+  }
+  if (cat === 'bloodbanks' && x.blood_types_available) {
+    rows.push(`<i class="fa-solid fa-droplet text-accent me-1"></i>Types: ${esc(x.blood_types_available)}`);
+  }
+  if (cat === 'vets' && x.emergency_24h !== undefined) {
+    rows.push(`<i class="fa-solid fa-clock text-accent me-1"></i>${x.emergency_24h ? '24-hour emergency care' : 'Regular hours - call ahead'}`);
+  }
+  if (x.phone) rows.push(`<i class="fa-solid fa-phone text-accent me-1"></i>${esc(x.phone)}`);
+  if (x.distance_km !== undefined && x.distance_km !== null) rows.push(`<i class="fa-solid fa-ruler text-accent me-1"></i>${x.distance_km} km away (straight line)`);
+
+  const detailHtml = rows.map(r => `<div>${r}</div>`).join('');
+  // For the inline onclick JS string literal, strip quotes/backslashes entirely
+  // rather than HTML-escaping them - escaped entities like &#39; get decoded
+  // back to a literal ' by the browser before the JS runs, which would break
+  // out of the string and throw a syntax error.
+  const jsSafeName = displayName.replace(/['"\\]/g, '');
+
+  return `<div style="min-width:190px">
+    <strong>${esc(displayName)}</strong>
+    <div class="small mt-1">${detailHtml}</div>
+    <div class="mt-1 small" id="${popupId}"><span class="text-muted-custom"><i class="fa-solid fa-spinner fa-spin me-1"></i>Calculating distance &amp; time...</span></div>
+    <div class="d-flex gap-1 mt-2">
+      <button onclick="setDestination(${x.latitude},${x.longitude},'${jsSafeName}')" class="btn btn-xs btn-primary-solid" style="font-size:.7rem;padding:2px 8px">Route</button>
+      ${x.phone ? `<a href="tel:${esc(x.phone)}" class="btn btn-xs btn-outline-primary" style="font-size:.7rem;padding:2px 8px"><i class="fa-solid fa-phone"></i> Call</a>` : ''}
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${x.latitude},${x.longitude}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-primary" style="font-size:.7rem;padding:2px 8px"><i class="fa-solid fa-up-right-from-square"></i> Maps</a>
+    </div>
+  </div>`;
+}
+
+/* ---------- Live distance & ETA shown directly inside each place's popup ---------- */
+const etaCache = {};
+function fetchPopupEta(popupId, destLat, destLng) {
+  const cacheKey = `${userLat.toFixed(4)},${userLng.toFixed(4)}->${destLat},${destLng},${travelMode}`;
+  const el = document.getElementById(popupId);
+  if (!el) return;
+  if (etaCache[cacheKey]) {
+    el.innerHTML = etaCache[cacheKey];
+    return;
+  }
+  const url = `https://router.project-osrm.org/route/v1/${travelMode}/${userLng},${userLat};${destLng},${destLat}?overview=false`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      const target = document.getElementById(popupId);
+      if (!data.routes || !data.routes.length) {
+        if (target) target.innerHTML = '<span class="text-muted-custom">Distance/time unavailable</span>';
+        return;
+      }
+      const km = (data.routes[0].distance / 1000).toFixed(1);
+      const mins = Math.round(data.routes[0].duration / 60);
+      const html = `<i class="fa-solid fa-road text-accent me-1"></i>${km} km &middot; <i class="fa-solid fa-clock text-accent me-1"></i>~${mins} min by ${travelMode === 'foot' ? 'walk' : travelMode}`;
+      etaCache[cacheKey] = html;
+      if (target) target.innerHTML = html;
+    })
+    .catch(() => {
+      const target = document.getElementById(popupId);
+      if (target) target.innerHTML = '<span class="text-muted-custom">Distance/time unavailable</span>';
+    });
+}
+
+/* ---------- Community Alerts merged into the main map ---------- */
+function loadCommunityAlerts() {
+  communityLayer.clearLayers();
+  fetch('/api/community-reports')
+    .then(r => r.json())
+    .then(reports => {
+      reports.forEach(r => {
+        const icon = L.divIcon({ html: `<div style="font-size:22px">${COMMUNITY_ICONS[r.incident_type] || '⚠️'}</div>`, className: '' });
+        L.marker([r.latitude, r.longitude], { icon })
+          .bindPopup(`<strong>${r.incident_type.replace('_', ' ')}</strong><br>${r.description || ''}`)
+          .addTo(communityLayer);
+      });
+    });
+}
+document.getElementById('chk_community').addEventListener('change', e => {
+  if (e.target.checked) leafletMap.addLayer(communityLayer);
+  else leafletMap.removeLayer(communityLayer);
+});
+
+/* ---------- Travel mode ---------- */
+document.querySelectorAll('#travelModeGroup button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#travelModeGroup button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    travelMode = btn.dataset.mode;
+    if (destMarker) drawRoute(userLat, userLng, destMarker.getLatLng().lat, destMarker.getLatLng().lng);
+  });
+});
+
+/* ---------- Destination + routing ---------- */
+let destMarker = null, routeLine = null, routeCoords = null, etaInterval = null, etaTarget = null;
+
+function setDestination(lat, lng, label) {
+  if (destMarker) leafletMap.removeLayer(destMarker);
+  const icon = L.divIcon({ html: '<div style="font-size:26px">🎯</div>', className: '' });
+  destMarker = L.marker([lat, lng], { icon }).addTo(leafletMap).bindPopup(label).openPopup();
+  drawRoute(userLat, userLng, lat, lng);
+  document.getElementById('saveFavBtn').classList.remove('d-none');
+  document.getElementById('saveFavBtn').dataset.lat = lat;
+  document.getElementById('saveFavBtn').dataset.lng = lng;
+  document.getElementById('saveFavBtn').dataset.label = label;
+  pushRecent(label, lat, lng);
+}
+
+function drawRoute(fromLat, fromLng, toLat, toLng) {
+  const routeInfo = document.getElementById('routeInfo');
+  const stepsCard = document.getElementById('stepsCard');
+  const stepsList = document.getElementById('stepsList');
+  routeInfo.classList.remove('d-none');
+  routeInfo.innerHTML = '<span class="text-muted-custom">Calculating route...</span>';
+  document.getElementById('clearRouteBtn').classList.remove('d-none');
+
+  // Free public OSRM demo routing server - no API key required. Note: the
+  // public demo server primarily hosts the 'driving' profile; foot/bike
+  // may be unavailable, handled gracefully below.
+  const url = `https://router.project-osrm.org/route/v1/${travelMode}/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson&steps=true`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.routes || !data.routes.length) {
+        routeInfo.innerHTML = travelMode === 'driving'
+          ? 'No route found.'
+          : 'This travel mode isn\'t available from the free routing server right now - try Driving instead.';
+        stepsCard.classList.add('d-none');
+        return;
+      }
+      const route = data.routes[0];
+      routeCoords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      if (routeLine) leafletMap.removeLayer(routeLine);
+      routeLine = L.polyline(routeCoords, { color: '#0B3D91', weight: 5, opacity: 0.85 }).addTo(leafletMap);
+      leafletMap.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+      document.getElementById('rerouteBox').classList.add('d-none');
+
+      const km = (route.distance / 1000).toFixed(1);
+      const mins = Math.round(route.duration / 60);
+      const modeLabel = travelMode === 'driving' ? 'by road' : travelMode === 'foot' ? 'walking' : 'cycling';
+      routeInfo.innerHTML = `<i class="fa-solid fa-road text-accent me-1"></i>${km} km &middot; <i class="fa-solid fa-clock text-accent me-1"></i>~${mins} min ${modeLabel}`;
+
+      startEtaCountdown(mins);
+
+      // Turn-by-turn steps
+      const steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
+      if (steps.length) {
+        stepsCard.classList.remove('d-none');
+        stepsList.innerHTML = steps.map(s => {
+          const m = s.maneuver;
+          const roadName = s.name || 'the road';
+          const type = (m.type || '').replace('_', ' ');
+          const modifier = m.modifier ? ` ${m.modifier}` : '';
+          const dist = s.distance >= 1000 ? (s.distance / 1000).toFixed(1) + ' km' : Math.round(s.distance) + ' m';
+          return `<li class="mb-2">${type}${modifier} onto <strong>${roadName}</strong> <span class="text-muted-custom">(${dist})</span></li>`;
+        }).join('');
+      } else {
+        stepsCard.classList.add('d-none');
+      }
+    })
+    .catch(() => { routeInfo.innerHTML = 'Could not calculate a route right now.'; stepsCard.classList.add('d-none'); });
+}
+
+function startEtaCountdown(minutes) {
+  if (etaInterval) clearInterval(etaInterval);
+  etaTarget = Date.now() + minutes * 60000;
+  const banner = document.getElementById('etaBanner');
+  banner.style.display = 'block';
+  function tick() {
+    const remain = Math.max(0, Math.round((etaTarget - Date.now()) / 60000));
+    banner.innerHTML = `<i class="fa-solid fa-clock text-accent me-1"></i>Arriving in ~${remain} min`;
+    if (remain <= 0) clearInterval(etaInterval);
+  }
+  tick();
+  etaInterval = setInterval(tick, 15000);
+}
+
+function clearRoute() {
+  if (destMarker) { leafletMap.removeLayer(destMarker); destMarker = null; }
+  if (routeLine) { leafletMap.removeLayer(routeLine); routeLine = null; }
+  routeCoords = null;
+  if (etaInterval) clearInterval(etaInterval);
+  document.getElementById('etaBanner').style.display = 'none';
+  document.getElementById('routeInfo').classList.add('d-none');
+  document.getElementById('clearRouteBtn').classList.add('d-none');
+  document.getElementById('saveFavBtn').classList.add('d-none');
+  document.getElementById('stepsCard').classList.add('d-none');
+  document.getElementById('rerouteBox').classList.add('d-none');
+}
+document.getElementById('clearRouteBtn').addEventListener('click', clearRoute);
+
+document.getElementById('rerouteBtn').addEventListener('click', () => {
+  if (destMarker) drawRoute(userLat, userLng, destMarker.getLatLng().lat, destMarker.getLatLng().lng);
+});
+
+/* Distance from a point to the nearest vertex of the current route (rough
+   "have I drifted off the path" check - not true point-to-segment distance,
+   but sufficient to prompt a recalculation rather than fail silently). */
+function distanceToRouteKm(lat, lng) {
+  if (!routeCoords) return null;
+  let min = Infinity;
+  for (const [rlat, rlng] of routeCoords) {
+    const R = 6371, dLat = (rlat - lat) * Math.PI / 180, dLng = (rlng - lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * Math.PI / 180) * Math.cos(rlat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+/* ---------- Search ---------- */
+document.getElementById('destSearchBtn').addEventListener('click', searchDestination);
+document.getElementById('destSearch').addEventListener('keydown', e => { if (e.key === 'Enter') searchDestination(); });
+
+function searchDestination() {
+  const q = document.getElementById('destSearch').value.trim();
+  if (!q) return;
+  // Free OpenStreetMap Nominatim geocoder - no API key required.
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(results => {
+      if (!results.length) { showToast('Could not find that place.', 'warning'); return; }
+      const { lat, lon, display_name } = results[0];
+      setDestination(parseFloat(lat), parseFloat(lon), display_name);
+      leafletMap.setView([lat, lon], 14);
+    })
+    .catch(() => showToast('Search failed - try again.', 'danger'));
+}
+
+/* ---------- Favorites (logged-in only) ---------- */
+function loadFavorites() {
+  if (!IS_LOGGED_IN) return;
+  fetch('/api/favorites')
+    .then(r => r.json())
+    .then(favs => {
+      const wrap = document.getElementById('favList');
+      if (!favs.length) { wrap.innerHTML = '<span class="small text-muted-custom">None saved yet.</span>'; return; }
+      wrap.innerHTML = '';
+      favs.forEach(f => {
+        const chip = document.createElement('button');
+        chip.className = 'btn btn-sm btn-ghost fav-chip';
+        chip.innerHTML = `<i class="fa-solid fa-star text-accent me-1"></i>${f.label}`;
+        chip.addEventListener('click', () => { setDestination(f.latitude, f.longitude, f.label); leafletMap.setView([f.latitude, f.longitude], 14); });
+        wrap.appendChild(chip);
+      });
+    });
+}
+
+document.getElementById('saveFavBtn').addEventListener('click', function () {
+  if (!IS_LOGGED_IN) { showToast('Log in to save favorite destinations.', 'warning'); return; }
+  const label = prompt('Name this place (e.g. Home, Work):', this.dataset.label.slice(0, 30));
+  if (!label) return;
+  fetch('/api/favorites', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label, lat: parseFloat(this.dataset.lat), lng: parseFloat(this.dataset.lng) }),
+  }).then(() => { showToast('Saved to favorites.', 'success'); loadFavorites(); });
+});
+
+/* ---------- Recently viewed (client-side only) ---------- */
+function pushRecent(label, lat, lng) {
+  let recent = JSON.parse(localStorage.getItem('hyperaid-recent-places') || '[]');
+  recent = recent.filter(r => r.label !== label);
+  recent.unshift({ label, lat, lng });
+  recent = recent.slice(0, 6);
+  localStorage.setItem('hyperaid-recent-places', JSON.stringify(recent));
+  renderRecent();
+}
+
+function renderRecent() {
+  const recent = JSON.parse(localStorage.getItem('hyperaid-recent-places') || '[]');
+  const wrap = document.getElementById('recentList');
+  if (!recent.length) { wrap.innerHTML = '<span class="small text-muted-custom">Nothing yet.</span>'; return; }
+  wrap.innerHTML = '';
+  recent.forEach(r => {
+    const chip = document.createElement('button');
+    chip.className = 'btn btn-sm btn-ghost recent-chip';
+    chip.textContent = r.label.length > 24 ? r.label.slice(0, 24) + '...' : r.label;
+    chip.addEventListener('click', () => { setDestination(r.lat, r.lng, r.label); leafletMap.setView([r.lat, r.lng], 14); });
+    wrap.appendChild(chip);
+  });
+}
+
+/* ---------- Locate me ---------- */
+document.getElementById('locateBtn').addEventListener('click', () => {
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    updateYouAreHere();
+    leafletMap.setView([userLat, userLng], 14);
+    loadMarkers();
+    showToast('Map centred on your location.', 'success');
+  }, () => showToast('Could not get your location.', 'danger'));
+});
+
+/* ---------- Watch position for drift-based reroute prompt ---------- */
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(pos => {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    if (youAreHereMarker) updateYouAreHere();
+    if (routeCoords) {
+      const drift = distanceToRouteKm(userLat, userLng);
+      if (drift !== null && drift > 0.3) {
+        document.getElementById('rerouteBox').classList.remove('d-none');
+      }
+    }
+  }, () => {}, { enableHighAccuracy: false, maximumAge: 15000 });
+}
+
+if (GMAPS_KEY) {
+  // Google Maps path (active once a real API key is supplied via env var)
+  window.initGoogleMap = function () {
+    const googleMap = new google.maps.Map(document.getElementById('map'), { center: { lat: userLat, lng: userLng }, zoom: 13 });
+    new google.maps.Marker({ position: { lat: userLat, lng: userLng }, map: googleMap, label: 'You' });
+  };
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initGoogleMap`;
+  script.async = true;
+  document.body.appendChild(script);
+} else {
+  initLeaflet();
+}
+</script>
+{% endblock %}

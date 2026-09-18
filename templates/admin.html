@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Admin</span>
+    <h1 class="section-title">Control Panel</h1>
+  </div>
+</section>
+
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-3 mb-4">
+      {% for label, key, icon in [("Users","users","fa-users"),("Hospitals","hospitals","fa-hospital"),
+                                    ("Ambulances","ambulances","fa-truck-medical"),("Police","police_stations","fa-building-shield"),
+                                    ("Fire","fire_stations","fa-fire-flame-curved"),("Pharmacies","pharmacies","fa-prescription-bottle-medical"),
+                                    ("Blood Banks","blood_banks","fa-droplet"),("Reports","reports","fa-file-lines"),
+                                    ("Feedback","feedback","fa-comment-dots")] %}
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="glass-card dash-tile text-center">
+          <i class="fa-solid {{ icon }} text-accent mb-2"></i>
+          <div class="count">{{ counts[key] }}</div>
+          <div class="small text-muted-custom">{{ label }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <ul class="nav nav-pills mb-4" id="adminTabs">
+      <li class="nav-item"><button class="nav-link active" data-tab="analytics">Analytics</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="capacity">Capacity</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="users">Users</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="reports">Reports</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="feedback">Feedback</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="audit">Audit Log</button></li>
+    </ul>
+
+    <!-- Analytics -->
+    <div class="admin-pane" id="pane-analytics">
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="glass-card dash-tile text-center"><div class="count">{{ open_count }}</div><div class="small text-muted-custom">Open reports</div></div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="glass-card dash-tile text-center"><div class="count">{{ resolved_count }}</div><div class="small text-muted-custom">Resolved reports</div></div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="glass-card dash-tile text-center"><div class="count">{{ duplicate_ids|length }}</div><div class="small text-muted-custom">Possible duplicates</div></div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="glass-card dash-tile text-center"><div class="count">{{ counts.reports }}</div><div class="small text-muted-custom">Total reports</div></div>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="glass-card p-4">
+            <h6 class="mb-3">Reports by type</h6>
+            <canvas id="chartByType" height="220"></canvas>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="glass-card p-4">
+            <h6 class="mb-3">Reports by severity</h6>
+            <canvas id="chartBySeverity" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card p-4 mt-4">
+        <h6 class="mb-3">Report activity heat-calendar <span class="small text-muted-custom">(day &times; hour)</span></h6>
+        <div class="table-responsive">
+          <table class="table table-sm text-center align-middle mb-0" style="font-size:.7rem">
+            <thead><tr><th></th>{% for h in range(24) %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% set days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+              {% for day in days %}
+              <tr>
+                <td class="fw-semibold">{{ day }}</td>
+                {% for count in heat_grid[loop.index0] %}
+                {% set intensity = [count / 3, 1] | min %}
+                <td style="background:rgba(230,57,70,{{ intensity }});color:{{ 'white' if intensity > 0.5 else 'inherit' }}">{{ count if count else '' }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capacity -->
+    <div class="admin-pane d-none" id="pane-capacity">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="glass-card p-3">
+            <h6 class="p-2">Hospital bed capacity</h6>
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead><tr><th>Hospital</th><th>Beds</th><th></th></tr></thead>
+                <tbody>
+                  {% for h in hospitals %}
+                  <tr>
+                    <td class="small">{{ h['name'] }}</td>
+                    <td style="width:110px">
+                      <form method="post" action="{{ url_for('admin_update_capacity', hospital_id=h['id']) }}" class="d-flex gap-1">
+                        <input type="number" min="0" name="beds_available" value="{{ h['beds_available'] }}" class="form-control form-control-sm">
+                        <button class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-check"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="glass-card p-3">
+            <h6 class="p-2">Ambulance status</h6>
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead><tr><th>Vehicle</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {% for a in ambulances %}
+                  <tr>
+                    <td class="small">{{ a['vehicle_no'] }}</td>
+                    <td><span class="pill {{ 'pill-low' if a['status']=='available' else 'pill-medium' }}">{{ a['status'] }}</span></td>
+                    <td>
+                      <form method="post" action="{{ url_for('admin_toggle_ambulance', ambulance_id=a['id']) }}">
+                        <button class="btn btn-sm btn-outline-primary">Toggle</button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="admin-pane d-none" id="pane-users">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{{ url_for('admin_export_users_csv') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</a>
+      </div>
+      <div class="glass-card p-3">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td>{{ u['full_name'] }}</td>
+                <td>{{ u['email'] }}</td>
+                <td>{{ u['phone'] or '-' }}</td>
+                <td><span class="badge {{ 'badge-role-admin' if u['role']=='admin' else 'badge-role-user' }}">{{ u['role'] }}</span></td>
+                <td class="small text-muted-custom">{{ u['created_at'] }}</td>
+                <td class="text-end">
+                  <form method="post" action="{{ url_for('admin_toggle_role', user_id=u['id']) }}" class="d-inline">
+                    <button class="btn btn-sm btn-outline-primary">Toggle role</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin_delete_user', user_id=u['id']) }}" class="d-inline" onsubmit="return confirm('Delete this user?')">
+                    <button class="btn btn-sm btn-outline-danger">Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reports -->
+    <div class="admin-pane d-none" id="pane-reports">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{{ url_for('admin_export_reports_csv') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</a>
+      </div>
+      <div class="glass-card p-3">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Type</th><th>Description</th><th>Severity</th><th>Status</th><th>Created</th><th></th></tr></thead>
+            <tbody>
+              {% for r in reports %}
+              <tr class="{{ 'table-warning' if r['id'] in duplicate_ids }}">
+                <td class="text-capitalize">{{ r['report_type'] }} {% if r['id'] in duplicate_ids %}<span class="pill pill-medium ms-1">Possible duplicate</span>{% endif %}</td>
+                <td class="small">{{ r['description'] or '-' }}</td>
+                <td><span class="pill {{ 'pill-high' if r['severity']=='High' else 'pill-medium' if r['severity']=='Medium' else 'pill-low' }}">{{ r['severity'] or '-' }}</span></td>
+                <td class="text-capitalize">{{ r['status'] }}</td>
+                <td class="small text-muted-custom">{{ r['created_at'] }}</td>
+                <td class="text-end">
+                  {% if r['status'] != 'resolved' %}
+                  <form method="post" action="{{ url_for('admin_resolve_report', report_id=r['id']) }}">
+                    <button class="btn btn-sm btn-outline-primary">Mark resolved</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="admin-pane d-none" id="pane-feedback">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{{ url_for('admin_export_feedback_csv') }}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</a>
+      </div>
+      <div class="row g-3">
+        {% for f in feedback %}
+        <div class="col-md-6">
+          <div class="glass-card p-3">
+            <div class="d-flex justify-content-between">
+              <div class="fw-semibold">{{ f['name'] or 'Anonymous' }}</div>
+              <div class="testimonial-stars small">{% for i in range(f['rating']) %}<i class="fa-solid fa-star"></i>{% endfor %}</div>
+            </div>
+            <div class="small text-muted-custom mb-2">{{ f['email'] or '' }}</div>
+            <p class="mb-0 small">{{ f['message'] }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Audit Log -->
+    <div class="admin-pane d-none" id="pane-audit">
+      <div class="glass-card p-3">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Admin</th><th>Action</th><th>Target</th><th>Details</th><th>When</th></tr></thead>
+            <tbody>
+              {% for a in audit_log %}
+              <tr>
+                <td class="small">{{ a['admin_name'] or 'System' }}</td>
+                <td class="small text-capitalize">{{ a['action'].replace('_',' ') }}</td>
+                <td class="small mono">{{ a['target'] or '-' }}</td>
+                <td class="small text-muted-custom">{{ a['details'] or '-' }}</td>
+                <td class="small text-muted-custom">{{ a['created_at'] }}</td>
+              </tr>
+              {% endfor %}
+              {% if not audit_log %}
+              <tr><td colspan="5" class="text-center text-muted-custom py-3">No admin actions logged yet.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('#adminTabs .nav-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#adminTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.admin-pane').forEach(p => p.classList.add('d-none'));
+    document.getElementById('pane-' + btn.dataset.tab).classList.remove('d-none');
+  });
+});
+
+const typeLabels = {{ reports_by_type|map(attribute='report_type')|list|tojson }};
+const typeData = {{ reports_by_type|map(attribute='c')|list|tojson }};
+new Chart(document.getElementById('chartByType'), {
+  type: 'doughnut',
+  data: { labels: typeLabels, datasets: [{ data: typeData, backgroundColor: ['#0B3D91','#E63946','#2A9D8F','#F4A261'] }] },
+  options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+const sevLabels = {{ reports_by_severity|map(attribute='severity')|list|tojson }};
+const sevData = {{ reports_by_severity|map(attribute='c')|list|tojson }};
+new Chart(document.getElementById('chartBySeverity'), {
+  type: 'bar',
+  data: { labels: sevLabels, datasets: [{ label: 'Reports', data: sevData, backgroundColor: '#1D5FD1' }] },
+  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+</script>
+{% endblock %}

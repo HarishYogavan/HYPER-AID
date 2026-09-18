@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}FAQ - HyperAid{% endblock %}
+{% block content %}
+<section class="pb-2 text-center">
+  <div class="container">
+    <span class="section-eyebrow">Support</span>
+    <h1 class="section-title">Frequently Asked Questions</h1>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container" style="max-width:820px">
+    <div class="accordion" id="faqAccordion">
+      {% set faqs = [
+        ("Is HyperAid a replacement for calling emergency services?", "No. HyperAid is designed to help you find services and act faster while you also call official emergency numbers (112, 108, 100, 101). It never replaces trained responders."),
+        ("How does the AI accident severity estimate work?", "It analyses basic image statistics - colour patterns and edge density - as a fast triage aid. It is a heuristic, not a certified medical diagnostic tool, so always assess the scene yourself and call for help when in doubt."),
+        ("Does the SOS button really send SMS messages?", "In this demo build, SOS notifications are simulated and logged rather than sent through a real SMS/email gateway. Connecting a provider like Twilio or an SMTP server would make it fully live."),
+        ("What data does HyperAid store about me?", "Your profile details, saved emergency contacts, and activity you generate (reports, feedback) - stored locally in the app's SQLite database and never sold to third parties."),
+        ("Can I use the assistant in my own language?", "Yes - the chat page includes a language selector for voice input/output, and you can type in any language; the underlying guidance library currently ships in English by default."),
+        ("Is my location shared with anyone else?", "Your location is only used inside your own session to rank nearby services and, if you trigger SOS, to inform the contacts you've saved.")
+      ] %}
+      {% for q, a in faqs %}
+      <div class="accordion-item glass-card mb-3">
+        <h2 class="accordion-header">
+          <button class="accordion-button {{ 'collapsed' if not loop.first }}" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ loop.index }}">
+            {{ q }}
+          </button>
+        </h2>
+        <div id="faq{{ loop.index }}" class="accordion-collapse collapse {{ 'show' if loop.first }}" data-bs-parent="#faqAccordion">
+          <div class="accordion-body text-muted-custom">{{ a }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

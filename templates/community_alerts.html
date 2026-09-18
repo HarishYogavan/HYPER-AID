@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Community Alerts - HyperAid{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+{% endblock %}
+{% block content %}
+<section class="pb-2">
+  <div class="container">
+    <span class="section-eyebrow">Crowd-sourced</span>
+    <h1 class="section-title">Community Alerts</h1>
+    <p class="section-sub mt-2">Recent incidents reported by nearby users - accidents, road blocks, flooding and more, from the last 48 hours. Not verified by officials; use judgement and always confirm with local authorities.</p>
+  </div>
+</section>
+<section class="pt-2">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div id="map" class="map-frame"></div>
+      </div>
+      <div class="col-lg-4">
+        <div class="glass-card p-4 mb-3">
+          <h6 class="mb-3"><i class="fa-solid fa-flag text-accent me-2"></i>Report an incident</h6>
+          <div class="mb-2">
+            <select class="form-select" id="incidentType">
+              {% for t in incident_types %}
+              <option value="{{ t }}">{{ t.replace('_',' ')|title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <textarea class="form-control mb-2" id="incidentDesc" rows="2" placeholder="Brief description (optional)"></textarea>
+          <button class="btn btn-emergency w-100" id="reportBtn"><i class="fa-solid fa-location-dot me-2"></i>Report at my location</button>
+        </div>
+        <div class="glass-card p-3" style="max-height:340px;overflow-y:auto" id="listPane">
+          <p class="text-muted-custom small text-center py-3">Loading recent reports...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const ICONS = { accident: '🚗', fire: '🔥', flood: '🌊', road_block: '🚧', crime: '🚨', other: '⚠️' };
+let map = L.map('map').setView([11.0168, 76.9558], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+let markers = [];
+
+function timeAgo(iso) {
+  const diffMin = Math.round((Date.now() - new Date(iso + 'Z')) / 60000);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1440) return `${Math.round(diffMin / 60)}h ago`;
+  return `${Math.round(diffMin / 1440)}d ago`;
+}
+
+function loadReports() {
+  fetch('/api/community-reports')
+    .then(r => r.json())
+    .then(data => {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      const list = document.getElementById('listPane');
+      list.innerHTML = data.length ? '' : '<p class="text-muted-custom small text-center py-3">No recent reports nearby.</p>';
+
+      data.forEach(r => {
+        const icon = L.divIcon({ html: `<div style="font-size:24px">${ICONS[r.incident_type] || '⚠️'}</div>`, className: '' });
+        const m = L.marker([r.latitude, r.longitude], { icon }).addTo(map)
+          .bindPopup(`<strong>${r.incident_type.replace('_',' ')}</strong><br>${r.description || ''}<br><small>${timeAgo(r.created_at)}</small>`);
+        markers.push(m);
+
+        const row = document.createElement('div');
+        row.className = 'd-flex justify-content-between align-items-start py-2 border-bottom';
+        row.style.borderColor = 'var(--border)';
+        row.innerHTML = `
+          <div>
+            <div class="fw-semibold small text-capitalize">${ICONS[r.incident_type] || ''} ${r.incident_type.replace('_',' ')}</div>
+            <div class="small text-muted-custom">${r.description || 'No details provided'}</div>
+            <div class="small text-muted-custom">${timeAgo(r.created_at)}</div>
+          </div>
+          <button class="btn btn-sm btn-ghost upvote-btn" data-id="${r.id}"><i class="fa-solid fa-arrow-up"></i> ${r.upvotes}</button>`;
+        list.appendChild(row);
+      });
+
+      document.querySelectorAll('.upvote-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          fetch(`/api/community-reports/${btn.dataset.id}/upvote`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { btn.innerHTML = `<i class="fa-solid fa-arrow-up"></i> ${d.upvotes}`; });
+        });
+      });
+    });
+}
+
+document.getElementById('reportBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { showToast('Geolocation not supported.', 'warning'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    fetch('/api/community-reports', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        incident_type: document.getElementById('incidentType').value,
+        description: document.getElementById('incidentDesc').value,
+        lat: pos.coords.latitude, lng: pos.coords.longitude,
+      }),
+    }).then(r => r.json()).then(() => {
+      showToast('Incident reported - thanks for helping others stay safe.', 'success');
+      document.getElementById('incidentDesc').value = '';
+      loadReports();
+    });
+  }, () => showToast('Could not get your location.', 'danger'));
+});
+
+loadReports();
+</script>
+{% endblock %}
